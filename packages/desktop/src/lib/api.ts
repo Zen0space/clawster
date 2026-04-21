@@ -70,10 +70,10 @@ export const api = {
         skipAuth: true,
       }),
 
-    register: (email: string, password: string, fullName?: string) =>
+    register: (email: string, password: string, licenseKey: string, fullName?: string) =>
       apiFetch<LoginResponse>("/api/v1/auth/register", {
         method: "POST",
-        body: JSON.stringify({ email, password, fullName }),
+        body: JSON.stringify({ email, password, licenseKey, fullName }),
         skipAuth: true,
       }),
 

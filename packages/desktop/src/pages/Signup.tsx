@@ -7,8 +7,8 @@ export function Signup({ onLogin }: Props) {
   const { register } = useAuth();
 
   const { mutate, isPending, error } = useMutation({
-    mutationFn: (data: { fullName: string; email: string; password: string }) =>
-      register(data.email, data.password, data.fullName || undefined),
+    mutationFn: (data: { fullName: string; email: string; password: string; licenseKey: string }) =>
+      register(data.email, data.password, data.licenseKey, data.fullName || undefined),
   });
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -17,8 +17,6 @@ export function Signup({ onLogin }: Props) {
     const password = form.get("password") as string;
     const confirm = form.get("confirm") as string;
     if (password !== confirm) {
-      // Surface as a mutation error by throwing from outside mutate —
-      // use a manual approach since FormData validation is synchronous
       e.currentTarget.confirm.setCustomValidity("passwords do not match");
       e.currentTarget.reportValidity();
       return;
@@ -28,6 +26,7 @@ export function Signup({ onLogin }: Props) {
       fullName: form.get("fullName") as string,
       email: form.get("email") as string,
       password,
+      licenseKey: (form.get("licenseKey") as string).trim().toUpperCase(),
     });
   }
 
@@ -45,6 +44,20 @@ export function Signup({ onLogin }: Props) {
         </div>
 
         <form className="auth-form" onSubmit={handleSubmit}>
+          <div className="auth-field">
+            <label className="auth-label" htmlFor="licenseKey">license key</label>
+            <input
+              className="auth-input"
+              id="licenseKey"
+              type="text"
+              name="licenseKey"
+              placeholder="XXXXX-XXXXX-XXXXX-XXXXX"
+              autoComplete="off"
+              spellCheck={false}
+              required
+            />
+          </div>
+
           <div className="auth-field">
             <label className="auth-label" htmlFor="fullName">full name</label>
             <input
@@ -97,7 +110,13 @@ export function Signup({ onLogin }: Props) {
             />
           </div>
 
-          {error && <p className="auth-error">{error.message}</p>}
+          {error && (
+            <p className="auth-error">
+              {error.message === "invalid_license_key"
+                ? "license key is invalid or already used"
+                : error.message}
+            </p>
+          )}
 
           <button className="auth-button" type="submit" disabled={isPending}>
             {isPending ? "creating account…" : "create account →"}

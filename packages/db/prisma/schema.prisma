@@ -22,6 +22,7 @@ model User {
   campaigns     Campaign[]
   mediaAssets   MediaAsset[]
   auditLogs     AuditLog[]
+  licenseKeys   LicenseKey[]
 
   @@map("users")
 }
@@ -165,4 +166,16 @@ model AuditLog {
   user User? @relation(fields: [userId], references: [id])
 
   @@map("audit_logs")
+}
+
+model LicenseKey {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key       String    @unique
+  usedAt    DateTime? @map("used_at")
+  usedById  String?   @map("used_by_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  usedBy User? @relation(fields: [usedById], references: [id])
+
+  @@map("license_keys")
 }

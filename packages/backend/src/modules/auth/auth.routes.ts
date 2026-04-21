@@ -15,12 +15,22 @@ export async function authRoutes(app: FastifyInstance) {
     const body = registerSchema.safeParse(request.body);
     if (!body.success) return reply.status(400).send({ error: "validation_error" });
 
+    const licenseKey = await prisma.licenseKey.findUnique({ where: { key: body.data.licenseKey } });
+    if (!licenseKey || licenseKey.usedAt) {
+      return reply.status(400).send({ error: "invalid_license_key" });
+    }
+
     const existing = await prisma.user.findUnique({ where: { email: body.data.email } });
     if (existing) return reply.status(409).send({ error: "email_taken" });
 
     const passwordHash = await hashPassword(body.data.password);
     const user = await prisma.user.create({
       data: { email: body.data.email, passwordHash, fullName: body.data.fullName ?? null },
+    });
+
+    await prisma.licenseKey.update({
+      where: { id: licenseKey.id },
+      data: { usedAt: new Date(), usedById: user.id },
     });
 
     const accessToken = issueAccessToken(user.id);

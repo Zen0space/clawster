@@ -32,6 +32,9 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @clawster/db generate
 
+      - name: Build db package
+        run: pnpm --filter @clawster/db build
+
       - name: Build .dmg
         uses: tauri-apps/tauri-action@v0
         with:
@@ -66,6 +69,9 @@ jobs:
 
       - name: Generate Prisma client
         run: pnpm --filter @clawster/db generate
+
+      - name: Build db package
+        run: pnpm --filter @clawster/db build
 
       - name: Build .exe
         uses: tauri-apps/tauri-action@v0

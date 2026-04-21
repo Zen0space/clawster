@@ -9,7 +9,7 @@ type AuthContextType = {
   user: AuthUser | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, fullName?: string) => Promise<void>;
+  register: (email: string, password: string, licenseKey: string, fullName?: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -51,8 +51,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   const registerMutation = useMutation({
-    mutationFn: async ({ email, password, fullName }: { email: string; password: string; fullName?: string }) => {
-      const res = await api.auth.register(email, password, fullName);
+    mutationFn: async ({ email, password, licenseKey, fullName }: { email: string; password: string; licenseKey: string; fullName?: string }) => {
+      const res = await api.auth.register(email, password, licenseKey, fullName);
       setTokens(res.access_token, res.refresh_token);
       return res.user;
     },
@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         isLoading,
         login: async (email, password) => { await loginMutation.mutateAsync({ email, password }); },
-        register: async (email, password, fullName) => { await registerMutation.mutateAsync({ email, password, fullName }); },
+        register: async (email, password, licenseKey, fullName) => { await registerMutation.mutateAsync({ email, password, licenseKey, fullName }); },
         logout: () => logoutMutation.mutateAsync(),
       }}
     >
