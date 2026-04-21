@@ -71,12 +71,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          hash_cmd() {
+            if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"
+            else shasum -a 256 "$@"; fi
+          }
           mkdir -p dist
           bundle_dir="packages/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.bundles }}"
           for f in "$bundle_dir"/*.${{ matrix.bundle_ext }}; do
             base="${{ matrix.artifact }}.${{ matrix.bundle_ext }}"
             cp "$f" "dist/$base"
-            (cd dist && shasum -a 256 "$base" > "$base.sha256")
+            (cd dist && hash_cmd "$base" > "$base.sha256")
           done
           ls -lah dist/
 
