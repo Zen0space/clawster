@@ -1,0 +1,118 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v1.0.3)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS (Apple Silicon)
+            os: macos-14
+            target: aarch64-apple-darwin
+            bundles: dmg
+            artifact: clawster-macos-aarch64
+            bundle_ext: dmg
+          - name: Windows (x64)
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+            artifact: clawster-windows-x86_64
+            bundle_ext: exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/desktop/src-tauri
+          key: ${{ matrix.target }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @clawster/db generate
+
+      - name: Build db package
+        run: pnpm --filter @clawster/db build
+
+      - name: Build desktop app
+        working-directory: packages/desktop
+        run: pnpm tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+
+      - name: Collect artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          bundle_dir="packages/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.bundles }}"
+          for f in "$bundle_dir"/*.${{ matrix.bundle_ext }}; do
+            base="${{ matrix.artifact }}.${{ matrix.bundle_ext }}"
+            cp "$f" "dist/$base"
+            (cd dist && shasum -a 256 "$base" > "$base.sha256")
+          done
+          ls -lah dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/
+          retention-days: 7
+          if-no-files-found: error
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -lah artifacts/
+
+      - name: Resolve tag
+        id: tag
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
+          generate_release_notes: true
+          files: artifacts/*
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
