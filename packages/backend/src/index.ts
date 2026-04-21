@@ -1,5 +1,4 @@
 import "dotenv/config";
-import "./types/fastify.d.ts";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
@@ -43,7 +42,7 @@ app.get("/healthz", async (request) => {
   return { ok: true };
 });
 
-app.listen({ port: Number(process.env.PORT ?? 8080), host: "127.0.0.1" }, (err) => {
+app.listen({ port: Number(process.env.PORT ?? 8080), host: process.env.HOST ?? "0.0.0.0" }, (err) => {
   if (err) { app.log.error(err); process.exit(1); }
   reconnectAll().catch((e) => app.log.error(e, "reconnectAll failed"));
   startWorker().catch((e) => app.log.error(e, "Worker failed to start"));

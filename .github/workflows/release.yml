@@ -65,6 +65,8 @@ jobs:
 
       - name: Build desktop app
         working-directory: packages/desktop
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
         run: pnpm tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
 
       - name: Collect artifacts
