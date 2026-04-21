@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAtomValue } from "jotai";
 import { api, type Campaign, type CreateCampaignInput } from "../lib/api";
 import { openEventSocket } from "../lib/ws";
-import { getAccessToken } from "../lib/tokenStore";
+import { accessTokenAtom } from "../atoms";
 
 type View = "list" | "new" | { id: string };
 
@@ -22,33 +23,49 @@ type PacingValues = {
 const PRESETS: Record<PresetKey, PacingValues & { label: string; desc: string; risk: string }> = {
   warmup: {
     label: "Warmup",
-    desc: "50/day · 1–5 min delay · quiet 22–8 · typing on",
+    desc: "50/day · 1–5 min delay · sleeps 10 PM – 8 AM · typing on",
     risk: "lowest ban risk — for new or cold numbers",
     minDelaySec: 60, maxDelaySec: 300, dailyCap: 50,
     quietStart: 22, quietEnd: 8, typingSim: true,
   },
   safe: {
     label: "Safe",
-    desc: "200/day · 30–3 min delay · quiet 23–7 · typing on",
+    desc: "200/day · 30 sec – 3 min delay · sleeps 11 PM – 7 AM · typing on",
     risk: "low ban risk — established number, low volume",
     minDelaySec: 30, maxDelaySec: 180, dailyCap: 200,
     quietStart: 23, quietEnd: 7, typingSim: true,
   },
   normal: {
     label: "Normal",
-    desc: "400/day · 20–90 sec delay · quiet 22–8 · typing on",
+    desc: "400/day · 20–90 sec delay · sleeps 10 PM – 8 AM · typing on",
     risk: "moderate — trusted number with send history",
     minDelaySec: 20, maxDelaySec: 90, dailyCap: 400,
     quietStart: 22, quietEnd: 8, typingSim: true,
   },
   fast: {
     label: "Fast",
-    desc: "500/day · 10–45 sec delay · no quiet hours · typing off",
+    desc: "500/day · 10–45 sec delay · no sleep hours · typing off",
     risk: "higher ban risk — use only on well-aged numbers",
     minDelaySec: 10, maxDelaySec: 45, dailyCap: 500,
     quietStart: null, quietEnd: null, typingSim: false,
   },
 };
+
+// ── hour formatting ────────────────────────────────────────────────────────
+
+function formatHour12(h: number): string {
+  if (h === 0) return "12 AM";
+  if (h === 12) return "12 PM";
+  return h < 12 ? `${h} AM` : `${h - 12} PM`;
+}
+
+const HOUR_OPTIONS: number[] = Array.from({ length: 24 }, (_, i) => i);
+
+function isSleepingNow(start: number | null, end: number | null): boolean {
+  if (start == null || end == null) return false;
+  const h = new Date().getHours();
+  return start < end ? (h >= start && h < end) : (h >= start || h < end);
+}
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -167,7 +184,11 @@ function CampaignForm({ onBack }: { onBack: () => void }) {
     },
   });
 
-  function set<K extends keyof CreateCampaignInput>(k: K, v: CreateCampaignInput[K]) {
+  function setField<K extends keyof CreateCampaignInput>(k: K, v: CreateCampaignInput[K]) {
+    setForm((f) => ({ ...f, [k]: v }));
+  }
+
+  function setPacing<K extends keyof CreateCampaignInput>(k: K, v: CreateCampaignInput[K]) {
     setActivePreset(null);
     setForm((f) => ({ ...f, [k]: v }));
   }
@@ -192,7 +213,7 @@ function CampaignForm({ onBack }: { onBack: () => void }) {
         <div className="auth-field">
           <label className="auth-label">campaign name</label>
           <input className="auth-input" placeholder="April Sales Blast" value={form.name}
-            onChange={(e) => set("name", e.target.value)} />
+            onChange={(e) => setField("name", e.target.value)} />
         </div>
 
         <div className="auth-field">
@@ -212,7 +233,7 @@ function CampaignForm({ onBack }: { onBack: () => void }) {
           <label className="auth-label">contact list</label>
           {contactLists.length === 0
             ? <p className="auth-error">no contact lists — import contacts first</p>
-            : <select className="select-input" value={form.contactListId} onChange={(e) => set("contactListId", e.target.value)}>
+            : <select className="select-input" value={form.contactListId} onChange={(e) => setField("contactListId", e.target.value)}>
                 <option value="">select list…</option>
                 {contactLists.map((l) => (
                   <option key={l.id} value={l.id}>{l.name} ({l.rowCount.toLocaleString()})</option>
@@ -228,7 +249,7 @@ function CampaignForm({ onBack }: { onBack: () => void }) {
             className="template-textarea"
             placeholder={"Hi {{name}}, this is a special offer just for you…"}
             value={form.messageTemplate}
-            onChange={(e) => set("messageTemplate", e.target.value)}
+            onChange={(e) => setField("messageTemplate", e.target.value)}
             rows={5}
           />
           {form.messageTemplate && (
@@ -287,32 +308,42 @@ function CampaignForm({ onBack }: { onBack: () => void }) {
               <div className="auth-field">
                 <label className="auth-label">min delay (sec)</label>
                 <input className="auth-input" type="number" min={5} max={3600} value={form.minDelaySec}
-                  onChange={(e) => set("minDelaySec", Number(e.target.value))} />
+                  onChange={(e) => setPacing("minDelaySec", Number(e.target.value))} />
               </div>
               <div className="auth-field">
                 <label className="auth-label">max delay (sec)</label>
                 <input className="auth-input" type="number" min={5} max={7200} value={form.maxDelaySec}
-                  onChange={(e) => set("maxDelaySec", Number(e.target.value))} />
+                  onChange={(e) => setPacing("maxDelaySec", Number(e.target.value))} />
               </div>
               <div className="auth-field">
                 <label className="auth-label">daily cap</label>
                 <input className="auth-input" type="number" min={1} max={1000} value={form.dailyCap}
-                  onChange={(e) => set("dailyCap", Number(e.target.value))} />
+                  onChange={(e) => setPacing("dailyCap", Number(e.target.value))} />
               </div>
               <div className="auth-field">
-                <label className="auth-label">quiet hours start (0–23)</label>
-                <input className="auth-input" type="number" min={0} max={23} placeholder="e.g. 22"
-                  value={form.quietStart ?? ""} onChange={(e) => set("quietStart", e.target.value ? Number(e.target.value) : null)} />
+                <label className="auth-label">sleep start</label>
+                <select className="select-input" value={form.quietStart ?? ""}
+                  onChange={(e) => setPacing("quietStart", e.target.value === "" ? null : Number(e.target.value))}>
+                  <option value="">none</option>
+                  {HOUR_OPTIONS.map((h) => (
+                    <option key={h} value={h}>{formatHour12(h)}</option>
+                  ))}
+                </select>
               </div>
               <div className="auth-field">
-                <label className="auth-label">quiet hours end (0–23)</label>
-                <input className="auth-input" type="number" min={0} max={23} placeholder="e.g. 8"
-                  value={form.quietEnd ?? ""} onChange={(e) => set("quietEnd", e.target.value ? Number(e.target.value) : null)} />
+                <label className="auth-label">sleep end</label>
+                <select className="select-input" value={form.quietEnd ?? ""}
+                  onChange={(e) => setPacing("quietEnd", e.target.value === "" ? null : Number(e.target.value))}>
+                  <option value="">none</option>
+                  {HOUR_OPTIONS.map((h) => (
+                    <option key={h} value={h}>{formatHour12(h)}</option>
+                  ))}
+                </select>
               </div>
               <div className="auth-field" style={{ gridColumn: "span 2" }}>
                 <label className="typing-sim-label">
                   <input type="checkbox" checked={form.typingSim ?? true}
-                    onChange={(e) => set("typingSim", e.target.checked)} />
+                    onChange={(e) => setPacing("typingSim", e.target.checked)} />
                   typing simulation (sends "composing…" before each message)
                 </label>
               </div>
@@ -340,28 +371,30 @@ function CampaignForm({ onBack }: { onBack: () => void }) {
 function CampaignDetail({ campaignId, onBack }: { campaignId: string; onBack: () => void }) {
   const queryClient = useQueryClient();
   const wsRef = useRef<WebSocket | null>(null);
+  const accessToken = useAtomValue(accessTokenAtom);
 
   const { data: campaign, isLoading } = useQuery({
     queryKey: ["campaign", campaignId],
     queryFn: () => api.campaigns.get(campaignId),
     refetchInterval: (q) => {
       const status = q.state.data?.status;
-      return status === "running" ? 4000 : false;
+      return status === "running" ? 10_000 : false;
     },
   });
 
   const { data: messages } = useQuery({
     queryKey: ["campaign-messages", campaignId],
     queryFn: () => api.campaigns.messages(campaignId, 1, 50),
-    refetchInterval: campaign?.status === "running" ? 4000 : false,
+    refetchInterval: campaign?.status === "running" ? 10_000 : false,
   });
 
   // WebSocket for real-time progress ticks
   useEffect(() => {
     if (campaign?.status !== "running") return;
-    const token = getAccessToken();
-    if (!token) return;
-    const ws = openEventSocket(token, (event) => {
+    if (!accessToken) return;
+    let closed = false;
+    const ws = openEventSocket(accessToken, (event) => {
+      if (closed) return;
       if (event.type === "campaign.progress" && event.campaign_id === campaignId) {
         queryClient.invalidateQueries({ queryKey: ["campaign", campaignId] });
         queryClient.invalidateQueries({ queryKey: ["campaign-messages", campaignId] });
@@ -373,7 +406,15 @@ function CampaignDetail({ campaignId, onBack }: { campaignId: string; onBack: ()
       }
     });
     wsRef.current = ws;
-    return () => { ws.close(); wsRef.current = null; };
+    return () => {
+      closed = true;
+      wsRef.current = null;
+      if (ws.readyState === WebSocket.CONNECTING) {
+        ws.onopen = () => ws.close();
+      } else {
+        ws.close();
+      }
+    };
   }, [campaignId, campaign?.status, queryClient]);
 
   const pauseMutation = useMutation({
@@ -412,6 +453,12 @@ function CampaignDetail({ campaignId, onBack }: { campaignId: string; onBack: ()
         </div>
         <StatusBadge status={campaign.status} />
       </div>
+
+      {campaign.status === "running" && isSleepingNow(campaign.quietStart, campaign.quietEnd) && (
+        <div className="campaign-sleep-banner">
+          💤 sleep hours active — sending resumes at {formatHour12(campaign.quietEnd!)}
+        </div>
+      )}
 
       {progress.total > 0 && (
         <div className="campaign-stats-card">
@@ -459,6 +506,10 @@ function CampaignDetail({ campaignId, onBack }: { campaignId: string; onBack: ()
         )}
       </div>
 
+      {campaign.status === "running" && (
+        <p className="campaign-server-hint">campaigns run on the server — safe to close this window</p>
+      )}
+
       {messages && messages.total > 0 && (
         <section>
           <h2 className="section-title">messages</h2>
@@ -493,7 +544,8 @@ function CampaignList({ onSelect, onCreate }: { onSelect: (id: string) => void; 
   const { data, isLoading } = useQuery({
     queryKey: ["campaigns"],
     queryFn: () => api.campaigns.list(),
-    refetchInterval: 8000,
+    refetchInterval: (q) =>
+      q.state.data?.items?.some((c) => c.status === "running") ? 10_000 : false,
   });
 
   const deleteMutation = useMutation({

@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { prisma } from "@clawster/db";
 import { createCampaignSchema } from "./campaigns.schema";
 import {
   createCampaign,
@@ -18,6 +19,7 @@ export async function campaignRoutes(app: FastifyInstance) {
     const body = createCampaignSchema.safeParse(request.body);
     if (!body.success) return reply.status(400).send({ error: "validation_error", issues: body.error.issues });
     const campaign = await createCampaign(request.user.sub, body.data);
+    await prisma.auditLog.create({ data: { userId: request.user.sub, action: "campaign.create", subject: campaign.id } });
     return reply.status(201).send(campaign);
   });
 
@@ -42,6 +44,7 @@ export async function campaignRoutes(app: FastifyInstance) {
     const { id } = request.params as { id: string };
     const ok = await deleteCampaign(id, request.user.sub);
     if (!ok) return reply.status(404).send({ error: "not_found or not a draft" });
+    await prisma.auditLog.create({ data: { userId: request.user.sub, action: "campaign.delete", subject: id } });
     return { ok: true };
   });
 
@@ -50,6 +53,7 @@ export async function campaignRoutes(app: FastifyInstance) {
     const { id } = request.params as { id: string };
     const result = await startCampaign(id, request.user.sub);
     if (!result.ok) return reply.status(422).send({ error: result.error });
+    await prisma.auditLog.create({ data: { userId: request.user.sub, action: "campaign.start", subject: id } });
     return { ok: true };
   });
 
@@ -58,6 +62,7 @@ export async function campaignRoutes(app: FastifyInstance) {
     const { id } = request.params as { id: string };
     const ok = await pauseCampaign(id, request.user.sub);
     if (!ok) return reply.status(422).send({ error: "campaign is not running" });
+    await prisma.auditLog.create({ data: { userId: request.user.sub, action: "campaign.pause", subject: id } });
     return { ok: true };
   });
 
@@ -66,6 +71,7 @@ export async function campaignRoutes(app: FastifyInstance) {
     const { id } = request.params as { id: string };
     const ok = await resumeCampaign(id, request.user.sub);
     if (!ok) return reply.status(422).send({ error: "campaign is not paused" });
+    await prisma.auditLog.create({ data: { userId: request.user.sub, action: "campaign.resume", subject: id } });
     return { ok: true };
   });
 
@@ -74,7 +80,20 @@ export async function campaignRoutes(app: FastifyInstance) {
     const { id } = request.params as { id: string };
     const ok = await cancelCampaign(id, request.user.sub);
     if (!ok) return reply.status(404).send({ error: "not_found" });
+    await prisma.auditLog.create({ data: { userId: request.user.sub, action: "campaign.cancel", subject: id } });
     return { ok: true };
+  });
+
+  // GET /stats — dashboard summary counts
+  app.get("/stats", { onRequest: [app.authenticate] }, async (request) => {
+    const userId = request.user.sub;
+    const [completedCampaigns, failedCampaigns, runningCampaigns, connectedDevices] = await Promise.all([
+      prisma.campaign.count({ where: { userId, status: "completed" } }),
+      prisma.campaign.count({ where: { userId, status: "failed" } }),
+      prisma.campaign.count({ where: { userId, status: "running" } }),
+      prisma.waSession.count({ where: { userId, status: "connected" } }),
+    ]);
+    return { completedCampaigns, failedCampaigns, runningCampaigns, connectedDevices };
   });
 
   // GET /campaigns/:id/messages — paginated per-recipient status

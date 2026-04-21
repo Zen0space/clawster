@@ -3,7 +3,8 @@ import { boss } from "./boss";
 import { TICK_JOB } from "../campaigns/campaigns.service";
 import { waHub } from "../wa/wa.hub";
 import { waRegistryGet } from "../wa/wa.registry";
-import { storage } from "../storage/localfs.storage";
+import { storage } from "../storage";
+import { log } from "../../logger";
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 function randBetween(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min; }
@@ -115,8 +116,9 @@ export async function processCampaignTick(campaignId: string) {
 }
 
 export async function startWorker() {
-  boss.on("error", (err) => console.error("[pg-boss]", err));
+  boss.on("error", (err) => log.error("pg-boss error", err));
   await boss.start();
+  log.success("worker started");
   await boss.createQueue(TICK_JOB);
   await boss.work<{ campaignId: string }>(TICK_JOB, async (jobs) => {
     for (const job of jobs) {

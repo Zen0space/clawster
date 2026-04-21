@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { uploadMedia, getMediaAsset, getMediaStream } from "./media.service";
+import { uploadMedia, getMediaAsset, getMediaBuffer } from "./media.service";
 
 export async function mediaRoutes(app: FastifyInstance) {
   // POST /media — multipart upload
@@ -18,7 +18,7 @@ export async function mediaRoutes(app: FastifyInstance) {
     }
 
     if (!fileBuffer) return reply.status(400).send({ error: "file is required" });
-    if (fileBuffer.length > 16 * 1024 * 1024) return reply.status(413).send({ error: "file too large (max 16MB)" });
+    if (fileBuffer.length > 5 * 1024 * 1024) return reply.status(413).send({ error: "file too large (max 5MB)" });
 
     const asset = await uploadMedia({
       userId: request.user.sub,
@@ -49,14 +49,15 @@ export async function mediaRoutes(app: FastifyInstance) {
     };
   });
 
-  // GET /media/:id/download — authenticated stream
+  // GET /media/:id/download — authenticated buffer download
   app.get("/media/:id/download", { onRequest: [app.authenticate] }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const asset = await getMediaAsset(id, request.user.sub);
     if (!asset) return reply.status(404).send({ error: "not_found" });
-    const stream = getMediaStream(asset.storagePath);
+    const buffer = await getMediaBuffer(asset.storagePath);
     reply.header("Content-Type", asset.mimeType);
+    reply.header("Content-Length", buffer.length);
     reply.header("Content-Disposition", `attachment; filename="${id}"`);
-    return reply.send(stream);
+    return reply.send(buffer);
   });
 }

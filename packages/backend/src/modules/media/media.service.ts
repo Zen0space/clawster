@@ -1,8 +1,7 @@
-import { createReadStream, type ReadStream } from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { prisma, type Prisma } from "@clawster/db";
-import { storage } from "../storage/localfs.storage";
+import { storage } from "../storage";
 
 export async function uploadMedia(opts: {
   userId: string;
@@ -31,6 +30,6 @@ export function getMediaAsset(id: string, userId: string): Promise<Prisma.MediaA
   return prisma.mediaAsset.findFirst({ where: { id, userId } });
 }
 
-export function getMediaStream(storagePath: string): ReadStream {
-  return createReadStream(storage.absolutePath(storagePath));
+export function getMediaBuffer(storagePath: string): Promise<Buffer> {
+  return storage.get(storagePath);
 }

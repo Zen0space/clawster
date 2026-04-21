@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { prisma } from "@clawster/db";
 import {
   importContacts,
   createContactList,
@@ -43,6 +44,7 @@ export async function contactsRoutes(app: FastifyInstance) {
         fileName,
         defaultRegion: parsed.data.defaultRegion,
       });
+      await prisma.auditLog.create({ data: { userId: request.user.sub, action: "contacts.import", subject: result.list_id, meta: { total: result.total, imported: result.imported } } });
       return reply.status(201).send(result);
     } catch (err: unknown) {
       if (err instanceof Error && (err as Error & { status?: number }).status === 422) {
@@ -58,6 +60,7 @@ export async function contactsRoutes(app: FastifyInstance) {
     const name = String(body?.name ?? "").trim();
     if (!name || name.length > 100) return reply.status(400).send({ error: "name is required (max 100 chars)" });
     const list = await createContactList(request.user.sub, name);
+    await prisma.auditLog.create({ data: { userId: request.user.sub, action: "contacts.list.create", subject: list.id } });
     return reply.status(201).send(list);
   });
 
@@ -99,6 +102,7 @@ export async function contactsRoutes(app: FastifyInstance) {
     const { id } = request.params as { id: string };
     const ok = await deleteContactList(id, request.user.sub);
     if (!ok) return reply.status(404).send({ error: "not_found" });
+    await prisma.auditLog.create({ data: { userId: request.user.sub, action: "contacts.list.delete", subject: id } });
     return { ok: true };
   });
 

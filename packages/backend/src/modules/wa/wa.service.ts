@@ -4,6 +4,7 @@ import { prisma } from "@clawster/db";
 import { waRegistrySet, waRegistryGet, waRegistryRemove } from "./wa.registry";
 import { waHub } from "./wa.hub";
 import { useDBAuthState } from "./wa.auth";
+import { silentLogger } from "../../logger";
 
 export async function spawnSession(sessionId: string, userId: string): Promise<void> {
   const { version } = await fetchLatestBaileysVersion();
@@ -14,6 +15,7 @@ export async function spawnSession(sessionId: string, userId: string): Promise<v
     auth: state,
     printQRInTerminal: false,
     browser: ["Clawster", "Desktop", "1.0.0"],
+    logger: silentLogger,
   });
 
   waRegistrySet(sessionId, socket);

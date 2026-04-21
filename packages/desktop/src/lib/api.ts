@@ -1,5 +1,3 @@
-import { getAccessToken } from "./tokenStore";
-
 const BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 async function apiFetch<T>(
@@ -13,7 +11,7 @@ async function apiFetch<T>(
   }
 
   if (!skipAuth) {
-    const token = getAccessToken();
+    const token = localStorage.getItem("access_token");
     if (token) headers.set("Authorization", `Bearer ${token}`);
   }
 
@@ -59,8 +57,16 @@ export type CreateCampaignInput = {
   quietStart?: number | null; quietEnd?: number | null; typingSim?: boolean;
 };
 
+export type DashboardStats = {
+  completedCampaigns: number;
+  failedCampaigns: number;
+  runningCampaigns: number;
+  connectedDevices: number;
+};
+
 export const api = {
   ping: () => apiFetch<{ ok: boolean }>("/healthz", { skipAuth: true }),
+  stats: () => apiFetch<DashboardStats>("/api/v1/stats"),
 
   auth: {
     login: (email: string, password: string) =>

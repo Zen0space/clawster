@@ -9,6 +9,7 @@ import {
   rotateRefreshToken,
   revokeRefreshToken,
 } from "./auth.service";
+import { log } from "../../logger";
 
 export async function authRoutes(app: FastifyInstance) {
   app.post("/register", async (request, reply) => {
@@ -40,7 +41,7 @@ export async function authRoutes(app: FastifyInstance) {
       data: { userId: user.id, action: "auth.register", subject: user.email },
     });
 
-    request.log.info({ userId: user.id }, "User registered");
+    log.success(`user registered ${user.email}`);
 
     return {
       access_token: accessToken,
@@ -68,7 +69,7 @@ export async function authRoutes(app: FastifyInstance) {
       data: { userId: user.id, action: "auth.login", subject: user.email },
     });
 
-    request.log.info({ userId: user.id }, "User logged in");
+    log.success(`user logged in ${user.email}`);
 
     return {
       access_token: accessToken,

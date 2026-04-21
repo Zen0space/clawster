@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { writeFile, BaseDirectory } from "@tauri-apps/plugin-fs";
@@ -418,9 +418,8 @@ function ContactListsTable({ lists, onDelete }: { lists: ContactList[]; onDelete
         {lists.map((l) => {
           const expanded = expandedId === l.id;
           return (
-            <>
+            <React.Fragment key={l.id}>
               <tr
-                key={l.id}
                 className={`list-row${expanded ? " expanded" : ""}`}
                 onClick={() => toggle(l.id)}
               >
@@ -435,13 +434,13 @@ function ContactListsTable({ lists, onDelete }: { lists: ContactList[]; onDelete
                 </td>
               </tr>
               {expanded && (
-                <tr key={`${l.id}-contacts`} className="contacts-expand-row">
+                <tr className="contacts-expand-row">
                   <td colSpan={5}>
                     <ContactsInList listId={l.id} />
                   </td>
                 </tr>
               )}
-            </>
+            </React.Fragment>
           );
         })}
       </tbody>

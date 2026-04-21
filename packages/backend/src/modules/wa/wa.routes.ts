@@ -1,9 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "@clawster/db";
+
 import { verifyAccessToken } from "../auth/auth.service";
 import { waHub } from "./wa.hub";
 import { spawnSession, removeSession } from "./wa.service";
 import { createSessionSchema } from "./wa.schema";
+import { log } from "../../logger";
 
 export async function waRoutes(app: FastifyInstance) {
   // WebSocket — auth via ?token query param
@@ -37,15 +39,16 @@ export async function waRoutes(app: FastifyInstance) {
 
     // spawn non-blocking — QR arrives via WebSocket
     spawnSession(session.id, request.user.sub).catch((err) =>
-      app.log.error({ err, sessionId: session.id }, "Failed to spawn WA session")
+      log.error(`failed to spawn wa session ${session.id}`, err)
     );
 
+    await prisma.auditLog.create({ data: { userId: request.user.sub, action: "session.create", subject: session.id } });
     return { id: session.id, status: session.status };
   });
 
   app.get("/sessions", { onRequest: [app.authenticate] }, async (request) => {
     return prisma.waSession.findMany({
-      where: { userId: request.user.sub },
+      where: { userId: request.user.sub, status: { not: "disconnected" } },
       select: {
         id: true,
         displayName: true,
@@ -84,7 +87,7 @@ export async function waRoutes(app: FastifyInstance) {
     if (!session) return reply.status(404).send({ error: "not_found" });
 
     await removeSession(id);
-    await prisma.waSession.delete({ where: { id } });
+    await prisma.auditLog.create({ data: { userId: request.user.sub, action: "session.delete", subject: id } });
 
     return { ok: true };
   });

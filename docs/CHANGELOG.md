@@ -6,6 +6,38 @@ All notable changes to Clawster are documented here.
 
 ## Releases
 
+## [v1.1.0] — 2026-04-22
+
+### New
+- **Settings page** — click the gear icon in the sidebar to view your account: email with a verified badge (confirming your license key), display name, role, and member-since date.
+- **Dashboard stats** — the dashboard now shows four live counters: campaigns completed, campaigns failed, campaigns currently running, and devices connected.
+- **MinIO / S3 media storage** — media uploads can now be stored in a self-hosted MinIO bucket (or any S3-compatible service) instead of local disk. Configure via environment variables.
+- **Backup & restore scripts** — new scripts let you take a full database + media snapshot and restore it to any date, with optional offsite upload via rclone.
+
+### Improved
+- **Sleep hours** — "quiet hours" is now called "sleep hours" throughout the app. Start and end times are displayed and selected in 12-hour AM/PM format (e.g. 11 PM – 7 AM) instead of raw 24-hour numbers.
+- **Sleep banner** — when a running campaign is inside its sleep window, a yellow banner now appears on the campaign detail page so you know why sending is paused and when it resumes.
+- **Server hint** — running campaign pages now show a note confirming that campaigns keep running on the server even after closing the app window.
+
+### Fixed
+- Changing a campaign's name, message, or contact list no longer resets the pacing preset to "custom".
+
+---
+
+## [v1.0.6] — 2026-04-21
+
+### Fixed
+- Sign-up and login no longer fail silently — the app was not connecting to the backend in previous releases due to a misconfigured build setting.
+
+---
+
+## [v1.0.5] — 2026-04-21
+
+### Fixed
+- macOS: opening the app no longer results in a hard "move to trash" block. The installer is now ad-hoc signed, so you can allow it via System Settings → Privacy & Security → Open Anyway.
+
+---
+
 ## [v1.0.4] — 2026-04-21
 
 ### Fixed

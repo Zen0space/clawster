@@ -1,9 +1,10 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAtomValue } from "jotai";
 import QRCode from "qrcode";
 import { api } from "../lib/api";
 import { openEventSocket } from "../lib/ws";
-import { getAccessToken } from "../lib/tokenStore";
+import { accessTokenAtom } from "../atoms";
 
 type Session = {
   id: string;
@@ -54,6 +55,7 @@ export function Sessions() {
   const [linkError, setLinkError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const queryClient = useQueryClient();
+  const accessToken = useAtomValue(accessTokenAtom);
 
   const { data: sessions = [], isLoading } = useQuery<Session[]>({
     queryKey: ["sessions"],
@@ -71,11 +73,11 @@ export function Sessions() {
   const createMutation = useMutation({
     mutationFn: () => api.wa.createSession(),
     onSuccess: ({ id }) => {
-      const token = getAccessToken();
-      if (!token) {
+      if (!accessToken) {
         setLinkError("session expired — please log in again");
         return;
       }
+      const token = accessToken;
 
       const ws = openEventSocket(token, async (event: WsEvent) => {
         if (event.type === "wa.qr" && event.session_id === id) {

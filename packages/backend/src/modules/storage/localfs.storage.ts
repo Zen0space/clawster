@@ -19,9 +19,6 @@ class LocalFsStorage implements IStorage {
     await fs.unlink(path.join(MEDIA_ROOT, key)).catch(() => {});
   }
 
-  absolutePath(key: string): string {
-    return path.join(MEDIA_ROOT, key);
-  }
 }
 
 export const storage: IStorage = new LocalFsStorage();
