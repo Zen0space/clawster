@@ -4,6 +4,13 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      release_id:
+        description: "GitHub Release ID to upload artifacts to (leave empty to skip upload)"
+        required: false
+
+env:
+  RELEASE_ID: ${{ github.event.release.id || inputs.release_id }}
 
 jobs:
   build-macos:
@@ -44,7 +51,7 @@ jobs:
           projectPath: packages/desktop
           tauriScript: pnpm tauri
           args: --target aarch64-apple-darwin --bundles dmg
-          releaseId: ${{ github.event.release.id }}
+          releaseId: ${{ env.RELEASE_ID }}
 
   build-windows:
     name: Windows (x64)
@@ -82,4 +89,4 @@ jobs:
           projectPath: packages/desktop
           tauriScript: pnpm tauri
           args: --bundles nsis
-          releaseId: ${{ github.event.release.id }}
+          releaseId: ${{ env.RELEASE_ID }}
