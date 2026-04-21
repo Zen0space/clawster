@@ -3,7 +3,7 @@ import { boss } from "./boss";
 import { TICK_JOB } from "../campaigns/campaigns.service";
 import { waHub } from "../wa/wa.hub";
 import { waRegistryGet } from "../wa/wa.registry";
-import { storage } from "../storage";
+import { storage } from "../storage/localfs.storage";
 import { log } from "../../logger";
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }

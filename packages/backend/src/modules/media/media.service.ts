@@ -1,7 +1,7 @@
 import path from "node:path";
 import crypto from "node:crypto";
 import { prisma, type Prisma } from "@clawster/db";
-import { storage } from "../storage";
+import { storage } from "../storage/localfs.storage";
 
 export async function uploadMedia(opts: {
   userId: string;
