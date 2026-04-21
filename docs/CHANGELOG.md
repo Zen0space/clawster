@@ -6,6 +6,13 @@ All notable changes to Clawster are documented here.
 
 ## Releases
 
+## [v1.1.1] — 2026-04-22
+
+### Fixed
+- Backend no longer crashes on boot when MinIO is not configured. The MinIO/S3 integration has been removed; media uploads are stored on the backend's local filesystem again. In production, mount a persistent volume at the backend's media directory (configurable via `MEDIA_ROOT`) so uploads survive redeploys.
+
+---
+
 ## [v1.1.0] — 2026-04-22
 
 ### New

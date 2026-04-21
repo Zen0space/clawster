@@ -1,6 +1,6 @@
 [package]
 name = "clawster"
-version = "1.1.0"
+version = "1.1.1"
 description = "Clawster Desktop App"
 authors = ["Khairul <hello@rekabytes.com>"]
 edition = "2021"
