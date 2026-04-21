@@ -111,6 +111,18 @@ export const api = {
     getList: (id: string) =>
       apiFetch<ContactList & { sourceFile: string | null }>(`/api/v1/contact-lists/${id}`),
 
+    createList: (name: string) =>
+      apiFetch<ContactList>("/api/v1/contact-lists", {
+        method: "POST",
+        body: JSON.stringify({ name }),
+      }),
+
+    addContact: (listId: string, phone: string, name?: string) =>
+      apiFetch<{ ok: boolean; phoneE164: string }>(`/api/v1/contact-lists/${listId}/contacts`, {
+        method: "POST",
+        body: JSON.stringify({ phone, name }),
+      }),
+
     deleteList: (id: string) =>
       apiFetch<{ ok: boolean }>(`/api/v1/contact-lists/${id}`, { method: "DELETE" }),
 

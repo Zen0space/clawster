@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import {
   importContacts,
+  createContactList,
+  addSingleContact,
   listContactLists,
   getContactList,
   deleteContactList,
@@ -48,6 +50,32 @@ export async function contactsRoutes(app: FastifyInstance) {
       }
       throw err;
     }
+  });
+
+  // POST /contact-lists — create empty list
+  app.post("/contact-lists", { onRequest: [app.authenticate] }, async (request, reply) => {
+    const body = request.body as { name?: string };
+    const name = String(body?.name ?? "").trim();
+    if (!name || name.length > 100) return reply.status(400).send({ error: "name is required (max 100 chars)" });
+    const list = await createContactList(request.user.sub, name);
+    return reply.status(201).send(list);
+  });
+
+  // POST /contact-lists/:id/contacts — add single contact
+  app.post("/contact-lists/:id/contacts", { onRequest: [app.authenticate] }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as { phone?: string; name?: string; defaultRegion?: string };
+    const phone = String(body?.phone ?? "").trim();
+    if (!phone) return reply.status(400).send({ error: "phone is required" });
+    const result = await addSingleContact({
+      listId: id,
+      userId: request.user.sub,
+      phone,
+      name: body?.name ? String(body.name).trim() : undefined,
+      defaultRegion: body?.defaultRegion ? String(body.defaultRegion) : "MY",
+    });
+    if (!result.ok) return reply.status(422).send({ error: result.error });
+    return reply.status(201).send(result);
   });
 
   // GET /contact-lists

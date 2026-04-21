@@ -170,6 +170,38 @@ export async function deleteContactList(id: string, userId: string): Promise<boo
 
 type ContactRow = { id: string; phoneE164: string; name: string | null; customFields: Prisma.JsonValue; isValid: boolean };
 
+export async function createContactList(userId: string, name: string) {
+  return prisma.contactList.create({
+    data: { userId, name, rowCount: 0 },
+    select: { id: true, name: true, rowCount: true, createdAt: true },
+  });
+}
+
+export async function addSingleContact(opts: {
+  listId: string;
+  userId: string;
+  phone: string;
+  name?: string;
+  defaultRegion?: string;
+}): Promise<{ ok: true; phoneE164: string } | { ok: false; error: string }> {
+  const list = await prisma.contactList.findFirst({ where: { id: opts.listId, userId: opts.userId } });
+  if (!list) return { ok: false, error: "list not found" };
+
+  const norm = normalizePhone(opts.phone, opts.defaultRegion ?? "MY");
+  if ("error" in norm) return { ok: false, error: `invalid phone: ${norm.error}` };
+
+  await prisma.contact.upsert({
+    where: { contactListId_phoneE164: { contactListId: opts.listId, phoneE164: norm.e164 } },
+    create: { contactListId: opts.listId, phoneE164: norm.e164, name: opts.name || null, customFields: {}, isValid: true },
+    update: { name: opts.name || null, isValid: true },
+  });
+
+  const count = await prisma.contact.count({ where: { contactListId: opts.listId } });
+  await prisma.contactList.update({ where: { id: opts.listId }, data: { rowCount: count } });
+
+  return { ok: true, phoneE164: norm.e164 };
+}
+
 export async function listContacts(
   listId: string,
   userId: string,

@@ -546,6 +546,75 @@ html, body, #root {
   box-shadow: 0 0 12px #3fb950;
 }
 
+/* ── toast ────────────────────────────────────────────────────────────────── */
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.toast {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 18px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 200;
+  animation: toast-in 0.18s ease;
+  pointer-events: none;
+  max-width: 360px;
+}
+
+.toast-success {
+  background: #0d2b14;
+  border: 1px solid #3fb95055;
+  color: #3fb950;
+}
+
+.toast-error {
+  background: #2b0d0d;
+  border: 1px solid #f8514955;
+  color: #f85149;
+}
+
+.toast-icon { font-size: 13px; flex-shrink: 0; }
+
+/* ── tab bar ──────────────────────────────────────────────────────────────── */
+
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid #21262d;
+  padding-bottom: 0;
+}
+
+.tab-item {
+  padding: 8px 16px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: #7d8590;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  letter-spacing: 0.02em;
+}
+
+.tab-item:hover { color: #e6edf3; }
+
+.tab-item.active {
+  color: #e6edf3;
+  border-bottom-color: #3fb950;
+}
+
 /* ── ghost button ─────────────────────────────────────────────────────────── */
 
 .btn-ghost {
@@ -581,6 +650,13 @@ html, body, #root {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.import-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .drop-zone {
@@ -755,4 +831,125 @@ html, body, #root {
 }
 
 .contact-lists-table tr:last-child td { border-bottom: none; }
-.contact-lists-table tr:hover td { background: #161b2250; }
+
+.list-row { cursor: pointer; transition: background 0.12s; }
+.list-row:hover td { background: #161b2280; }
+.list-row.expanded td { background: #161b22; }
+
+.expand-cell { width: 32px; padding-left: 8px !important; }
+.expand-icon { font-size: 9px; color: #7d8590; }
+.list-name-cell { font-weight: 500; }
+
+/* ── expanded contacts sub-table ──────────────────────────────────────────── */
+
+.contacts-expand-row td {
+  padding: 0 !important;
+  border-bottom: 1px solid #21262d;
+}
+
+.contacts-inner-wrap {
+  padding: 20px 20px 18px 44px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #0d1117;
+  border-top: 1px solid #21262d;
+}
+
+.contacts-inner-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.contacts-inner-table th {
+  padding: 6px 10px 10px;
+  text-align: left;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #3d444d;
+  border-bottom: 1px solid #21262d;
+  white-space: nowrap;
+}
+
+.contacts-inner-table td {
+  padding: 10px 10px 6px;
+  border-bottom: 1px solid #0d111766;
+}
+
+.contacts-inner-table tr:last-child td { border-bottom: none; }
+
+.contact-phone { color: #e6edf3; font-family: inherit; }
+.contact-name  { color: #7d8590; }
+
+.contacts-inner-count {
+  font-size: 10px;
+  color: #3d444d;
+  padding-top: 2px;
+}
+
+.load-more {
+  font-family: inherit;
+  font-size: 11px;
+  color: #3fb950;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  text-align: left;
+  transition: color 0.15s;
+}
+
+.load-more:hover { color: #56d364; }
+.load-more:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── select input ─────────────────────────────────────────────────────────── */
+
+.select-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237d8590' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 10px center;
+  border: none;
+  border-bottom: 1px solid #30363d;
+  color: #e6edf3;
+  font-family: inherit;
+  font-size: 14px;
+  padding: 8px 32px 8px 0;
+  width: 100%;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.select-input:focus { border-bottom-color: #3fb950; }
+
+.select-input option {
+  background: #161b22;
+  color: #e6edf3;
+}
+
+/* ── manual add form ──────────────────────────────────────────────────────── */
+
+.manual-section { display: flex; flex-direction: column; gap: 20px; }
+
+.manual-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 360px;
+}
+
+.manual-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 4px;
+}
+
+.added-feedback {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: #3fb950;
+}
