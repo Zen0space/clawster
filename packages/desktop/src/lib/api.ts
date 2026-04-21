@@ -35,6 +35,30 @@ export type ContactList = { id: string; name: string; rowCount: number; createdA
 export type Contact = { id: string; phoneE164: string; name: string | null; customFields: Record<string, string>; isValid: boolean };
 export type ImportResult = { list_id: string; total: number; imported: number; invalid: { row: number; reason: string }[] };
 
+export type CampaignProgress = { sent: number; failed: number; remaining: number; total: number };
+export type Campaign = {
+  id: string; name: string; status: string;
+  waSessionId: string; contactListId: string;
+  messageTemplate: string;
+  minDelaySec: number; maxDelaySec: number; dailyCap: number;
+  quietStart: number | null; quietEnd: number | null; typingSim: boolean;
+  startedAt: string | null; completedAt: string | null; createdAt: string;
+  progress: CampaignProgress;
+};
+export type CampaignMessage = {
+  id: string; status: string; renderedBody: string;
+  waMessageId: string | null; error: string | null;
+  attempts: number; sentAt: string | null; updatedAt: string;
+  contact: { phoneE164: string; name: string | null };
+};
+export type CreateCampaignInput = {
+  name: string; waSessionId: string; contactListId: string;
+  messageTemplate: string;
+  mediaAssetId?: string;
+  minDelaySec?: number; maxDelaySec?: number; dailyCap?: number;
+  quietStart?: number | null; quietEnd?: number | null; typingSim?: boolean;
+};
+
 export const api = {
   ping: () => apiFetch<{ ok: boolean }>("/healthz", { skipAuth: true }),
 
@@ -143,6 +167,37 @@ export const api = {
     get: (id: string) =>
       apiFetch<{ id: string; mimeType: string; byteSize: number; sha256: string; createdAt: string }>(
         `/api/v1/media/${id}`
+      ),
+  },
+
+  campaigns: {
+    create: (data: CreateCampaignInput) =>
+      apiFetch<Campaign>("/api/v1/campaigns", { method: "POST", body: JSON.stringify(data) }),
+
+    list: (page = 1, limit = 20) =>
+      apiFetch<{ items: Campaign[]; total: number }>(`/api/v1/campaigns?page=${page}&limit=${limit}`),
+
+    get: (id: string) =>
+      apiFetch<Campaign>(`/api/v1/campaigns/${id}`),
+
+    delete: (id: string) =>
+      apiFetch<{ ok: boolean }>(`/api/v1/campaigns/${id}`, { method: "DELETE" }),
+
+    start: (id: string) =>
+      apiFetch<{ ok: boolean }>(`/api/v1/campaigns/${id}/start`, { method: "POST" }),
+
+    pause: (id: string) =>
+      apiFetch<{ ok: boolean }>(`/api/v1/campaigns/${id}/pause`, { method: "POST" }),
+
+    resume: (id: string) =>
+      apiFetch<{ ok: boolean }>(`/api/v1/campaigns/${id}/resume`, { method: "POST" }),
+
+    cancel: (id: string) =>
+      apiFetch<{ ok: boolean }>(`/api/v1/campaigns/${id}/cancel`, { method: "POST" }),
+
+    messages: (id: string, page = 1, limit = 50) =>
+      apiFetch<{ items: CampaignMessage[]; total: number; page: number; limit: number }>(
+        `/api/v1/campaigns/${id}/messages?page=${page}&limit=${limit}`
       ),
   },
 };

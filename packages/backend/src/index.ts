@@ -9,6 +9,8 @@ import { authRoutes } from "./modules/auth/auth.routes";
 import { waRoutes } from "./modules/wa/wa.routes";
 import { contactsRoutes } from "./modules/contacts/contacts.routes";
 import { mediaRoutes } from "./modules/media/media.routes";
+import { campaignRoutes } from "./modules/campaigns/campaigns.routes";
+import { startWorker } from "./modules/worker/sender";
 import { reconnectAll } from "./modules/wa/wa.service";
 
 const app = Fastify({ logger: true });
@@ -34,6 +36,7 @@ app.register(authRoutes, { prefix: "/api/v1/auth" });
 app.register(waRoutes, { prefix: "/api/v1/wa" });
 app.register(contactsRoutes, { prefix: "/api/v1" });
 app.register(mediaRoutes, { prefix: "/api/v1" });
+app.register(campaignRoutes, { prefix: "/api/v1" });
 
 app.get("/healthz", async (request) => {
   request.log.info("Desktop connected");
@@ -43,4 +46,5 @@ app.get("/healthz", async (request) => {
 app.listen({ port: Number(process.env.PORT ?? 8080), host: "127.0.0.1" }, (err) => {
   if (err) { app.log.error(err); process.exit(1); }
   reconnectAll().catch((e) => app.log.error(e, "reconnectAll failed"));
+  startWorker().catch((e) => app.log.error(e, "Worker failed to start"));
 });

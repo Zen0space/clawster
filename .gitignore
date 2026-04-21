@@ -8,6 +8,9 @@ dist/
 build/
 out/
 
+# ─── Runtime data (uploaded media + xlsx imports) ────────────────────────────
+packages/backend/data/
+
 # ─── TypeScript ──────────────────────────────────────────────────────────────
 *.tsbuildinfo
 

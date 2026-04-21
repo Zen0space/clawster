@@ -5,14 +5,16 @@ import { Signup } from "./pages/Signup";
 import { Dashboard } from "./pages/Dashboard";
 import { Sessions } from "./pages/Sessions";
 import { Contacts } from "./pages/Contacts";
+import { Campaigns } from "./pages/Campaigns";
 
 type AuthPage = "login" | "signup";
-type AppPage = "dashboard" | "sessions" | "contacts";
+type AppPage = "dashboard" | "sessions" | "contacts" | "campaigns";
 
 const NAV: { id: AppPage; label: string }[] = [
   { id: "dashboard", label: "dashboard" },
   { id: "sessions", label: "wa sessions" },
   { id: "contacts", label: "contacts" },
+  { id: "campaigns", label: "campaigns" },
 ];
 
 function Layout({ children, page, onNavigate }: {
@@ -67,6 +69,7 @@ export function App() {
       {appPage === "dashboard" && <Dashboard onNavigate={setAppPage} />}
       {appPage === "sessions" && <Sessions />}
       {appPage === "contacts" && <Contacts />}
+      {appPage === "campaigns" && <Campaigns />}
     </Layout>
   );
 }

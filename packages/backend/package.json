@@ -23,6 +23,7 @@
     "fastify": "^5.2.1",
     "google-libphonenumber": "^3.2.44",
     "jsonwebtoken": "^9.0.2",
+    "pg-boss": "^12.15.0",
     "zod": "^3.24.3"
   },
   "devDependencies": {

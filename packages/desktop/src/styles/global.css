@@ -953,3 +953,300 @@ html, body, #root {
   font-size: 12px;
   color: #3fb950;
 }
+
+/* ── campaigns ────────────────────────────────────────────────────────────── */
+
+.back-btn {
+  font-family: inherit;
+  font-size: 11px;
+  color: #7d8590;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 8px;
+  display: block;
+  transition: color 0.15s;
+}
+.back-btn:hover { color: #e6edf3; }
+
+.campaign-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 560px;
+}
+
+.field-hint {
+  font-size: 11px;
+  color: #3d444d;
+  margin-bottom: 4px;
+}
+.field-hint code {
+  background: #21262d;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #79c0ff;
+}
+
+.template-textarea {
+  background: transparent;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #e6edf3;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 10px 12px;
+  width: 100%;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s;
+  caret-color: #3fb950;
+  line-height: 1.6;
+}
+.template-textarea:focus { border-color: #3fb950; }
+
+.template-preview {
+  font-size: 12px;
+  color: #e6edf3;
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 6px;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+.pacing-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 24px;
+}
+
+.typing-sim-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #7d8590;
+  cursor: pointer;
+}
+.typing-sim-label input { accent-color: #3fb950; cursor: pointer; }
+
+/* campaigns table */
+
+.campaigns-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.campaigns-table th {
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #7d8590;
+  border-bottom: 1px solid #21262d;
+}
+.campaigns-table td {
+  padding: 12px 12px;
+  border-bottom: 1px solid #161b22;
+  vertical-align: middle;
+}
+.campaigns-table tr:last-child td { border-bottom: none; }
+
+.campaign-row { cursor: pointer; transition: background 0.12s; }
+.campaign-row:hover td { background: #161b2280; }
+.campaign-name { font-weight: 500; }
+.campaign-actions-cell { width: 140px; }
+
+/* progress bar */
+
+.progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.progress-bar {
+  flex: 1;
+  height: 4px;
+  background: #21262d;
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+  min-width: 80px;
+}
+.progress-fill {
+  height: 100%;
+  background: #3fb950;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+.progress-fill-fail {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  background: #f85149;
+  border-radius: 2px;
+}
+.progress-label { font-size: 10px; color: #7d8590; white-space: nowrap; }
+
+/* campaign detail */
+
+.campaign-stats-card {
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 10px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.stats-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.stat-item { font-size: 13px; font-weight: 600; }
+.stat-sent    { color: #3fb950; }
+.stat-failed  { color: #f85149; }
+.stat-remaining { color: #79c0ff; }
+
+.campaign-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* messages table */
+
+.messages-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.messages-table th {
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #7d8590;
+  border-bottom: 1px solid #21262d;
+}
+.messages-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid #161b22;
+}
+.messages-table tr:last-child td { border-bottom: none; }
+
+.msg-status { font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.msg-sent     { color: #3fb950; }
+.msg-failed   { color: #f85149; }
+.msg-queued   { color: #7d8590; }
+.msg-sending  { color: #d29922; }
+.msg-skipped  { color: #3d444d; }
+
+/* ── pacing presets ───────────────────────────────────────────────────────── */
+
+.pacing-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.preset-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.preset-btn {
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: #7d8590;
+  background: transparent;
+  border: 1px solid #30363d;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
+.preset-btn:hover { color: #e6edf3; border-color: #7d8590; }
+
+.preset-btn.active {
+  color: #0d1117;
+  background: #3fb950;
+  border-color: #3fb950;
+}
+
+.preset-btn.preset-custom.active {
+  background: #79c0ff;
+  border-color: #79c0ff;
+  color: #0d1117;
+}
+
+.preset-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 32px;
+}
+
+.preset-desc {
+  font-size: 12px;
+  color: #e6edf3;
+}
+
+.preset-risk {
+  font-size: 11px;
+  color: #7d8590;
+}
+
+/* ── image upload ─────────────────────────────────────────────────────────── */
+
+.image-upload-zone {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px dashed #30363d;
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-size: 12px;
+  color: #7d8590;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.image-upload-zone:hover { border-color: #3fb950; color: #e6edf3; }
+.image-upload-zone.uploading { opacity: 0.6; cursor: not-allowed; }
+.image-upload-zone span { font-size: 16px; color: #3d444d; }
+
+.image-preview-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.image-preview {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #30363d;
+}
+.image-remove {
+  font-family: inherit;
+  font-size: 11px;
+  color: #f85149;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 4px;
+}
+.image-remove:hover { text-decoration: underline; }
