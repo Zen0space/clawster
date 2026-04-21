@@ -8,7 +8,9 @@ async function apiFetch<T>(
 ): Promise<T> {
   const { skipAuth, ...rest } = options;
   const headers = new Headers(rest.headers);
-  if (rest.body != null && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  if (rest.body != null && !(rest.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
 
   if (!skipAuth) {
     const token = getAccessToken();
@@ -28,6 +30,10 @@ async function apiFetch<T>(
 type AuthUser = { id: string; email: string; fullName: string | null; role: string };
 type LoginResponse = { access_token: string; refresh_token: string; user: AuthUser };
 type TokenResponse = { access_token: string; refresh_token: string };
+
+export type ContactList = { id: string; name: string; rowCount: number; createdAt: string };
+export type Contact = { id: string; phoneE164: string; name: string | null; customFields: Record<string, string>; isValid: boolean };
+export type ImportResult = { list_id: string; total: number; imported: number; invalid: { row: number; reason: string }[] };
 
 export const api = {
   ping: () => apiFetch<{ ok: boolean }>("/healthz", { skipAuth: true }),
@@ -86,5 +92,45 @@ export const api = {
 
     deleteSession: (id: string) =>
       apiFetch<{ ok: boolean }>(`/api/v1/wa/sessions/${id}`, { method: "DELETE" }),
+  },
+
+  contacts: {
+    import: (file: File, name: string, defaultRegion = "MY") => {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("name", name);
+      fd.append("defaultRegion", defaultRegion);
+      return apiFetch<ImportResult>("/api/v1/contacts/import", { method: "POST", body: fd });
+    },
+
+    listLists: (page = 1, limit = 20) =>
+      apiFetch<{ items: ContactList[]; total: number; page: number; limit: number }>(
+        `/api/v1/contact-lists?page=${page}&limit=${limit}`
+      ),
+
+    getList: (id: string) =>
+      apiFetch<ContactList & { sourceFile: string | null }>(`/api/v1/contact-lists/${id}`),
+
+    deleteList: (id: string) =>
+      apiFetch<{ ok: boolean }>(`/api/v1/contact-lists/${id}`, { method: "DELETE" }),
+
+    listContacts: (listId: string, page = 1, limit = 50) =>
+      apiFetch<{ items: Contact[]; total: number; page: number; limit: number }>(
+        `/api/v1/contact-lists/${listId}/contacts?page=${page}&limit=${limit}`
+      ),
+  },
+
+  media: {
+    upload: (file: File) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      return apiFetch<{ id: string; mimeType: string; byteSize: number; sha256: string }>(
+        "/api/v1/media", { method: "POST", body: fd }
+      );
+    },
+    get: (id: string) =>
+      apiFetch<{ id: string; mimeType: string; byteSize: number; sha256: string; createdAt: string }>(
+        `/api/v1/media/${id}`
+      ),
   },
 };

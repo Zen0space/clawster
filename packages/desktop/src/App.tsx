@@ -4,13 +4,15 @@ import { Login } from "./pages/Login";
 import { Signup } from "./pages/Signup";
 import { Dashboard } from "./pages/Dashboard";
 import { Sessions } from "./pages/Sessions";
+import { Contacts } from "./pages/Contacts";
 
 type AuthPage = "login" | "signup";
-type AppPage = "dashboard" | "sessions";
+type AppPage = "dashboard" | "sessions" | "contacts";
 
 const NAV: { id: AppPage; label: string }[] = [
   { id: "dashboard", label: "dashboard" },
   { id: "sessions", label: "wa sessions" },
+  { id: "contacts", label: "contacts" },
 ];
 
 function Layout({ children, page, onNavigate }: {
@@ -64,6 +66,7 @@ export function App() {
     <Layout page={appPage} onNavigate={setAppPage}>
       {appPage === "dashboard" && <Dashboard onNavigate={setAppPage} />}
       {appPage === "sessions" && <Sessions />}
+      {appPage === "contacts" && <Contacts />}
     </Layout>
   );
 }

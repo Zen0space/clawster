@@ -2,15 +2,18 @@ import "dotenv/config";
 import "./types/fastify.d.ts";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
 import websocketPlugin from "@fastify/websocket";
 import { verifyAccessToken } from "./modules/auth/auth.service";
 import { authRoutes } from "./modules/auth/auth.routes";
 import { waRoutes } from "./modules/wa/wa.routes";
+import { contactsRoutes } from "./modules/contacts/contacts.routes";
+import { mediaRoutes } from "./modules/media/media.routes";
 import { reconnectAll } from "./modules/wa/wa.service";
 
 const app = Fastify({ logger: true });
 
-app.decorateRequest("user", null);
+app.decorateRequest("user", null as unknown as { sub: string });
 app.decorate("authenticate", async function (request, reply) {
   const header = request.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
@@ -25,9 +28,12 @@ app.decorate("authenticate", async function (request, reply) {
 });
 
 app.register(cors, { origin: true, allowedHeaders: ["Authorization", "Content-Type"] });
+app.register(multipart, { limits: { fileSize: 25 * 1024 * 1024, files: 1 } });
 app.register(websocketPlugin);
 app.register(authRoutes, { prefix: "/api/v1/auth" });
 app.register(waRoutes, { prefix: "/api/v1/wa" });
+app.register(contactsRoutes, { prefix: "/api/v1" });
+app.register(mediaRoutes, { prefix: "/api/v1" });
 
 app.get("/healthz", async (request) => {
   request.log.info("Desktop connected");
