@@ -1,0 +1,55 @@
+# ─── Dependencies ────────────────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+
+# ─── Build output ────────────────────────────────────────────────────────────
+dist/
+build/
+out/
+
+# ─── TypeScript ──────────────────────────────────────────────────────────────
+*.tsbuildinfo
+
+# ─── Prisma ──────────────────────────────────────────────────────────────────
+packages/db/.env
+packages/backend/.env
+packages/desktop/.env
+
+# ─── Tauri / Rust ────────────────────────────────────────────────────────────
+packages/desktop/src-tauri/target/
+packages/desktop/src-tauri/gen/
+packages/desktop/src-tauri/Cargo.lock
+# generated icons (reproduced by: node scripts/gen-icons.mjs)
+packages/desktop/src-tauri/icons/
+!packages/desktop/src-tauri/icons/_source.png
+
+# ─── Environment files ───────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+# keep .env.example files tracked
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# ─── OS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Editors ─────────────────────────────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ─── Misc ────────────────────────────────────────────────────────────────────
+.cache/
+coverage/

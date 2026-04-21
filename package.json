@@ -1,0 +1,20 @@
+{
+  "name": "clawster",
+  "private": true,
+  "scripts": {
+    "dev:backend": "pnpm --filter @clawster/backend dev",
+    "dev:desktop": "pnpm --filter @clawster/desktop dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "db:generate": "pnpm --filter @clawster/db generate",
+    "db:migrate:dev": "pnpm --filter @clawster/db migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @clawster/db migrate:deploy",
+    "db:studio": "pnpm --filter @clawster/db studio"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["@prisma/engines", "prisma", "argon2", "sharp", "@whiskeysockets/baileys", "protobufjs"]
+  }
+}

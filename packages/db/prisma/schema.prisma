@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  fullName     String?  @map("full_name")
+  role         String   @default("admin")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  refreshTokens RefreshToken[]
+  waSessions    WaSession[]
+  contactLists  ContactList[]
+  campaigns     Campaign[]
+  mediaAssets   MediaAsset[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model WaSession {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  displayName String?   @map("display_name")
+  phoneNumber String?   @map("phone_number")
+  jid         String?
+  status      String    @default("pending") // pending|connected|disconnected|banned
+  sessionBlob Bytes?    @map("session_blob") // AES-GCM encrypted Baileys creds JSON
+  lastSeenAt  DateTime? @map("last_seen_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaigns Campaign[]
+
+  @@index([userId])
+  @@map("wa_sessions")
+}
+
+model ContactList {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  name       String
+  sourceFile String?  @map("source_file")
+  rowCount   Int      @default(0) @map("row_count")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contacts  Contact[]
+  campaigns Campaign[]
+
+  @@map("contact_lists")
+}
+
+model Contact {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contactListId String   @map("contact_list_id") @db.Uuid
+  phoneE164     String   @map("phone_e164")
+  name          String?
+  customFields  Json     @default("{}") @map("custom_fields")
+  isValid       Boolean  @default(true) @map("is_valid")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  contactList      ContactList       @relation(fields: [contactListId], references: [id], onDelete: Cascade)
+  campaignMessages CampaignMessage[]
+
+  @@unique([contactListId, phoneE164])
+  @@index([contactListId])
+  @@map("contacts")
+}
+
+model MediaAsset {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  storagePath String   @map("storage_path")
+  mimeType    String   @map("mime_type")
+  byteSize    BigInt   @map("byte_size")
+  sha256      String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaigns Campaign[]
+
+  @@map("media_assets")
+}
+
+model Campaign {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  waSessionId     String    @map("wa_session_id") @db.Uuid
+  contactListId   String    @map("contact_list_id") @db.Uuid
+  name            String
+  messageTemplate String    @map("message_template")
+  mediaAssetId    String?   @map("media_asset_id") @db.Uuid
+  minDelaySec     Int       @default(30) @map("min_delay_sec")
+  maxDelaySec     Int       @default(180) @map("max_delay_sec")
+  dailyCap        Int       @default(500) @map("daily_cap")
+  quietStart      Int?      @map("quiet_start")
+  quietEnd        Int?      @map("quiet_end")
+  typingSim       Boolean   @default(true) @map("typing_sim")
+  status          String    @default("draft") // draft|running|paused|completed|failed
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  waSession        WaSession         @relation(fields: [waSessionId], references: [id])
+  contactList      ContactList       @relation(fields: [contactListId], references: [id])
+  mediaAsset       MediaAsset?       @relation(fields: [mediaAssetId], references: [id])
+  campaignMessages CampaignMessage[]
+
+  @@map("campaigns")
+}
+
+model CampaignMessage {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId   String    @map("campaign_id") @db.Uuid
+  contactId    String    @map("contact_id") @db.Uuid
+  renderedBody String    @map("rendered_body")
+  status       String    @default("queued") // queued|sending|sent|failed|skipped
+  attempts     Int       @default(0)
+  waMessageId  String?   @map("wa_message_id")
+  error        String?
+  scheduledAt  DateTime? @map("scheduled_at")
+  sentAt       DateTime? @map("sent_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact  Contact  @relation(fields: [contactId], references: [id])
+
+  @@index([campaignId])
+  @@index([status, scheduledAt])
+  @@map("campaign_messages")
+}
+
+model AuditLog {
+  id        BigInt   @id @default(autoincrement())
+  userId    String?  @map("user_id") @db.Uuid
+  action    String
+  subject   String?
+  meta      Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}

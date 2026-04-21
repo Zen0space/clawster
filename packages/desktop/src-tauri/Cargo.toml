@@ -1,0 +1,19 @@
+[package]
+name = "clawster"
+version = "0.1.0"
+description = "Clawster Desktop App"
+authors = ["Khairul <hello@rekabytes.com>"]
+edition = "2021"
+
+[lib]
+name = "clawster_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-store = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
