@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type Campaign, type CampaignMessage, type CreateCampaignInput } from "../lib/api";
+import { api, type Campaign, type CreateCampaignInput } from "../lib/api";
 import { openEventSocket } from "../lib/ws";
 import { getAccessToken } from "../lib/tokenStore";
 
@@ -155,7 +155,6 @@ function CampaignForm({ onBack }: { onBack: () => void }) {
     if (connectedSessions.length > 0 && !form.waSessionId) {
       setForm((f) => ({ ...f, waSessionId: connectedSessions[0].id }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessions]);
 
   const contactLists = lists?.items ?? [];

@@ -1,11 +1,11 @@
 /**
- * Generates a placeholder source PNG then uses the Tauri CLI to produce
- * all required icon formats (32x32.png, 128x128.png, icon.ico, icon.icns …).
- * Run once: node scripts/gen-icons.mjs
- * Replace packages/desktop/src-tauri/icons/_source.png with your real logo later.
+ * Uses the Tauri CLI to produce all required icon formats from
+ * packages/desktop/src-tauri/icons/_source.png.
+ * If _source.png does not exist, a solid green placeholder is written first.
+ * Run: node scripts/gen-icons.mjs
  */
 import { deflateSync } from "node:zlib";
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
@@ -63,9 +63,13 @@ const iconsDir = resolve(root, "packages/desktop/src-tauri/icons");
 mkdirSync(iconsDir, { recursive: true });
 
 const src = resolve(iconsDir, "_source.png");
-writeFileSync(src, solidPNG(512, 34, 197, 94)); // green-500 placeholder
-console.log("✓ source PNG written →", src);
-console.log("  Replace _source.png with your real logo, then re-run this script.\n");
+if (!existsSync(src)) {
+  writeFileSync(src, solidPNG(512, 34, 197, 94)); // green-500 placeholder
+  console.info("✓ placeholder source PNG written →", src);
+  console.info("  Replace _source.png with your real logo and re-run.\n");
+} else {
+  console.info("✓ using existing source →", src, "\n");
+}
 
 // ── run tauri icon ────────────────────────────────────────────────────────────
 console.log("Running: pnpm exec tauri icon …");

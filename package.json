@@ -6,15 +6,27 @@
     "dev:desktop": "pnpm --filter @clawster/desktop dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r --parallel lint",
     "db:generate": "pnpm --filter @clawster/db generate",
     "db:migrate:dev": "pnpm --filter @clawster/db migrate:dev",
     "db:migrate:deploy": "pnpm --filter @clawster/db migrate:deploy",
     "db:studio": "pnpm --filter @clawster/db studio"
   },
   "devDependencies": {
-    "typescript": "^5.8.3"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.2.1",
+    "globals": "^17.5.0",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.59.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@prisma/engines", "prisma", "argon2", "sharp", "@whiskeysockets/baileys", "protobufjs"]
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "prisma",
+      "argon2",
+      "sharp",
+      "@whiskeysockets/baileys",
+      "protobufjs"
+    ]
   }
 }

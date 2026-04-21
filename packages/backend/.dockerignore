@@ -1,0 +1,27 @@
+# Repo-level exclusions (build context is the repo root)
+**/node_modules
+**/dist
+**/build
+**/out
+**/target
+**/.turbo
+**/.vite
+**/.cache
+**/.next
+
+# Tauri / Rust build artifacts
+packages/desktop/src-tauri/target
+packages/desktop/src-tauri/gen
+
+# Backend runtime data (media uploads, xlsx imports)
+packages/backend/data
+
+# Dev files
+**/.env
+**/.env.local
+**/.DS_Store
+**/*.log
+.git
+.github
+.vscode
+.idea

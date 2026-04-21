@@ -46,12 +46,10 @@ html, body, #root {
 }
 
 .auth-brand-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #3fb950;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
-  box-shadow: 0 0 8px #3fb95066;
+  background: url("/logo.png") center/contain no-repeat;
 }
 
 .auth-brand-name {
