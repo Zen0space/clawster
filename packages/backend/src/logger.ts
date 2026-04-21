@@ -27,8 +27,8 @@ function fmtErr(err: unknown): string {
 }
 
 export const log = {
-  info: (msg: string) => console.log(line(C.cyan, "info", msg)),
-  success: (msg: string) => console.log(line(C.green, "ok", msg)),
+  info: (msg: string) => console.info(line(C.cyan, "info", msg)),
+  success: (msg: string) => console.info(line(C.green, "ok", msg)),
   warn: (msg: string, err?: unknown) => {
     console.warn(line(C.yellow, "warn", msg));
     if (err !== undefined) console.warn(`  ${C.dim}${fmtErr(err)}${C.reset}`);
@@ -38,14 +38,14 @@ export const log = {
     if (err !== undefined) console.error(`  ${C.dim}${fmtErr(err)}${C.reset}`);
   },
   debug: (msg: string) => {
-    if (DEBUG) console.log(line(C.magenta, "debug", msg));
+    if (DEBUG) console.info(line(C.magenta, "debug", msg));
   },
   api: (method: string, url: string, status: number, durationMs: number) => {
     const isErr = status >= 400;
     const tagColor = isErr ? (status >= 500 ? C.red : C.yellow) : C.green;
     const tagLabel = isErr ? "api err" : "api ok";
     const statusColor = status >= 500 ? C.red : status >= 400 ? C.yellow : C.green;
-    console.log(
+    console.info(
       line(
         tagColor,
         tagLabel,
@@ -55,7 +55,18 @@ export const log = {
   },
 };
 
-export const silentLogger: any = {
+type SilentLogger = {
+  level: string;
+  trace: () => void;
+  debug: () => void;
+  info: () => void;
+  warn: () => void;
+  error: () => void;
+  fatal: () => void;
+  child: () => SilentLogger;
+};
+
+export const silentLogger: SilentLogger = {
   level: "silent",
   trace: () => {},
   debug: () => {},

@@ -7,6 +7,7 @@ import {
   CreateBucketCommand,
 } from "@aws-sdk/client-s3";
 import type { IStorage } from "./storage.interface";
+import { log } from "../../logger";
 
 class MinIOStorage implements IStorage {
   private readonly bucket = process.env.MINIO_BUCKET ?? "clawster";
@@ -28,7 +29,7 @@ class MinIOStorage implements IStorage {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
     } catch {
       await this.client.send(new CreateBucketCommand({ Bucket: this.bucket }));
-      console.log(`[minio] bucket "${this.bucket}" created`);
+      log.success(`minio bucket "${this.bucket}" created`);
     }
   }
 
