@@ -1,15 +1,16 @@
 name: Desktop Build
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
-  push:
-    tags:
-      - "v*"
 
 jobs:
   build-macos:
     name: macOS (Apple Silicon)
     runs-on: macos-14
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -37,19 +38,19 @@ jobs:
 
       - name: Build .dmg
         uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: packages/desktop
           tauriScript: pnpm tauri
           args: --target aarch64-apple-darwin --bundles dmg
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Clawster-macOS-arm64
-          path: packages/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+          releaseId: ${{ github.event.release.id }}
 
   build-windows:
     name: Windows (x64)
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -75,12 +76,10 @@ jobs:
 
       - name: Build .exe
         uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: packages/desktop
           tauriScript: pnpm tauri
           args: --bundles nsis
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Clawster-Windows-x64
-          path: packages/desktop/src-tauri/target/release/bundle/nsis/*.exe
+          releaseId: ${{ github.event.release.id }}
