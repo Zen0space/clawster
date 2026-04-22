@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type ChatConversation, type ChatInboxMessage } from "../lib/api";
 import { openEventSocket } from "../lib/ws";
 import { accessTokenAtom, selectedConversationIdAtom, inboxUnreadAtom } from "../atoms";
@@ -75,6 +75,7 @@ export function Inbox() {
   const setUnread = useSetAtom(inboxUnreadAtom);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
+  const [draft, setDraft] = useState("");
 
   // Stable ref so the WS callback doesn't close over stale selectedConversationId
   const selectedIdRef = useRef(selectedConversationId);
@@ -109,6 +110,25 @@ export function Inbox() {
 
   const messages = msgsData?.items ?? [];
 
+  const sendMutation = useMutation({
+    mutationFn: (content: string) =>
+      api.chat.sendMessage(selectedConversationId!, content),
+    onSuccess: () => {
+      setDraft("");
+      queryClient.invalidateQueries({ queryKey: ["chat-messages", selectedConversationId] });
+      queryClient.invalidateQueries({ queryKey: ["chat-conversations", activeSessionId] });
+    },
+  });
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      const content = draft.trim();
+      if (!content || sendMutation.isPending) return;
+      sendMutation.mutate(content);
+    }
+  }
+
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
@@ -126,6 +146,9 @@ export function Inbox() {
         } else {
           setUnread((n) => n + 1);
         }
+      }
+      if (event.type === "chat.message.sent") {
+        queryClient.invalidateQueries({ queryKey: ["chat-messages", event.conversation_id] });
       }
     });
     return () => {
@@ -213,6 +236,33 @@ export function Inbox() {
               ))}
               <div ref={threadEndRef} />
             </div>
+
+            <div className="inbox-compose">
+              <textarea
+                className="inbox-compose-input"
+                placeholder="type a message… enter to send, shift+enter for new line"
+                value={draft}
+                rows={1}
+                disabled={sendMutation.isPending}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={handleKeyDown}
+              />
+              <button
+                className="btn-primary inbox-compose-btn"
+                disabled={!draft.trim() || sendMutation.isPending}
+                onClick={() => {
+                  const content = draft.trim();
+                  if (content) sendMutation.mutate(content);
+                }}
+              >
+                {sendMutation.isPending ? "sending…" : "send"}
+              </button>
+            </div>
+            {sendMutation.isError && (
+              <p className="inbox-send-error">
+                failed to send — {(sendMutation.error as Error).message}
+              </p>
+            )}
           </>
         )}
       </div>

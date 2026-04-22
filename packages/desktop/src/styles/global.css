@@ -1770,6 +1770,51 @@ html, body, #root {
   align-self: flex-end;
 }
 
+/* compose bar */
+
+.inbox-compose {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #21262d;
+  flex-shrink: 0;
+}
+
+.inbox-compose-input {
+  flex: 1;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  color: #e6edf3;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  resize: none;
+  outline: none;
+  transition: border-color 0.15s;
+  caret-color: #3fb950;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.inbox-compose-input:focus  { border-color: #3fb950; }
+.inbox-compose-input:disabled { opacity: 0.5; }
+.inbox-compose-input::placeholder { color: #3d444d; }
+
+.inbox-compose-btn {
+  flex-shrink: 0;
+  padding: 10px 16px;
+}
+
+.inbox-send-error {
+  font-size: 11px;
+  color: #f85149;
+  padding: 0 16px 10px;
+  flex-shrink: 0;
+}
+
 /* unread badge on nav item */
 
 .inbox-unread-badge {

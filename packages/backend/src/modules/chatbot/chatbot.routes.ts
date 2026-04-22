@@ -1,5 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "@clawster/db";
+import { boss } from "../worker/boss";
+import { CHAT_REPLY_JOB } from "./chatbot.worker";
 import { listConversations, listMessages } from "./chatbot.service";
 
 export async function chatbotRoutes(app: FastifyInstance) {
@@ -31,5 +33,40 @@ export async function chatbotRoutes(app: FastifyInstance) {
     const page = Math.max(1, Number(q.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(q.limit) || 50));
     return listMessages(id, page, limit);
+  });
+
+  // POST /chat/conversations/:id/messages — send a manual reply
+  app.post("/chat/conversations/:id/messages", { onRequest: [app.authenticate] }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as Record<string, unknown>;
+    const content = typeof body?.content === "string" ? body.content.trim() : "";
+    if (!content) return reply.status(400).send({ error: "content_required" });
+    if (content.length > 4096) return reply.status(400).send({ error: "content_too_long" });
+
+    const conversation = await prisma.chatConversation.findFirst({
+      where: { id, waSession: { userId: request.user.sub } },
+      include: { waSession: { select: { userId: true } } },
+    });
+    if (!conversation) return reply.status(404).send({ error: "not_found" });
+
+    const message = await prisma.chatMessage.create({
+      data: { conversationId: id, role: "human", body: content },
+    });
+
+    await prisma.chatConversation.update({
+      where: { id },
+      data: { lastMessageAt: new Date() },
+    });
+
+    await boss.send(CHAT_REPLY_JOB, {
+      messageId: message.id,
+      conversationId: id,
+      waSessionId: conversation.waSessionId,
+      userId: conversation.waSession.userId,
+      remoteJid: conversation.remoteJid,
+      body: content,
+    });
+
+    return reply.status(201).send(message);
   });
 }

@@ -205,6 +205,12 @@ export const api = {
       apiFetch<{ items: ChatInboxMessage[]; total: number; page: number; limit: number }>(
         `/api/v1/chat/conversations/${conversationId}/messages?page=${page}&limit=${limit}`
       ),
+
+    sendMessage: (conversationId: string, content: string) =>
+      apiFetch<ChatInboxMessage>(`/api/v1/chat/conversations/${conversationId}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ content }),
+      }),
   },
 
   campaigns: {

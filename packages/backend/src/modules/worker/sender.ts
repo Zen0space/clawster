@@ -5,6 +5,7 @@ import { waHub } from "../wa/wa.hub";
 import { waRegistryGet } from "../wa/wa.registry";
 import { storage } from "../storage/localfs.storage";
 import { log } from "../../logger";
+import { registerChatWorker } from "../chatbot/chatbot.worker";
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 function randBetween(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min; }
@@ -141,4 +142,5 @@ export async function startWorker() {
       await processCampaignTick(job.data.campaignId);
     }
   });
+  await registerChatWorker();
 }
