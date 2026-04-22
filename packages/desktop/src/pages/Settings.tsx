@@ -1,6 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type ChatHealth } from "../lib/api";
 
+function fmtTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
+}
+
 function AiStatusDot({ ok }: { ok: boolean }) {
   return (
     <span
@@ -103,6 +109,13 @@ export function Settings() {
     staleTime: 60_000,
   });
 
+  const { data: stats } = useQuery({
+    queryKey: ["chat-stats"],
+    queryFn: () => api.chat.stats(),
+    staleTime: 60_000,
+    enabled: health?.configured ?? false,
+  });
+
   // Auto-run a check on first load if configured but never checked
   useMutation({
     mutationFn: () => api.chat.healthCheck(),
@@ -171,6 +184,26 @@ export function Settings() {
           </div>
         )}
       </section>
+
+      {stats && (
+        <section className="settings-section">
+          <h2 className="section-title">bot usage</h2>
+          <div className="settings-card">
+            <div className="settings-field">
+              <span className="settings-field-label">today</span>
+              <span className="settings-field-value" style={{ fontSize: 12 }}>
+                {stats.todayReplies} replies · {fmtTokens(stats.todayTokens)} tokens
+              </span>
+            </div>
+            <div className="settings-field">
+              <span className="settings-field-label">this month</span>
+              <span className="settings-field-value" style={{ fontSize: 12 }}>
+                {stats.monthReplies} replies · {fmtTokens(stats.monthTokens)} tokens
+              </span>
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

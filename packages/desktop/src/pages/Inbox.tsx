@@ -46,9 +46,8 @@ function ConversationItem({
       </div>
       {preview && (
         <p className="inbox-conv-preview">
-          {preview.role !== "user" && (
-            <span className="inbox-conv-you">you: </span>
-          )}
+          {preview.role === "assistant" && <span className="inbox-conv-bot">bot: </span>}
+          {preview.role === "human" && <span className="inbox-conv-you">you: </span>}
           {preview.body}
         </p>
       )}
@@ -58,9 +57,11 @@ function ConversationItem({
 
 function MessageBubble({ msg }: { msg: ChatInboxMessage }) {
   const isOutbound = msg.role === "human" || msg.role === "assistant";
+  const isBot = msg.role === "assistant";
   return (
     <div className={`inbox-bubble-wrap${isOutbound ? " outbound" : ""}`}>
-      <div className={`inbox-bubble${isOutbound ? " outbound" : " inbound"}`}>
+      <div className={`inbox-bubble${isOutbound ? " outbound" : " inbound"}${isBot ? " bot" : ""}`}>
+        {isBot && <span className="inbox-bubble-bot-label">bot</span>}
         <p className="inbox-bubble-body">{msg.body}</p>
         <span className="inbox-bubble-time">{formatTime(msg.createdAt)}</span>
       </div>
@@ -74,10 +75,10 @@ export function Inbox() {
   const [selectedConversationId, setSelectedConversationId] = useAtom(selectedConversationIdAtom);
   const setUnread = useSetAtom(inboxUnreadAtom);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-  const threadEndRef = useRef<HTMLDivElement>(null);
+  const threadBodyRef = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState("");
+  const [botError, setBotError] = useState<string | null>(null);
 
-  // Stable ref so the WS callback doesn't close over stale selectedConversationId
   const selectedIdRef = useRef(selectedConversationId);
   selectedIdRef.current = selectedConversationId;
 
@@ -106,9 +107,12 @@ export function Inbox() {
     queryKey: ["chat-messages", selectedConversationId],
     queryFn: () => api.chat.listMessages(selectedConversationId!),
     enabled: Boolean(selectedConversationId),
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const messages = msgsData?.items ?? [];
+  const lastMsgId = messages.at(-1)?.id;
 
   const sendMutation = useMutation({
     mutationFn: (content: string) =>
@@ -116,6 +120,14 @@ export function Inbox() {
     onSuccess: () => {
       setDraft("");
       queryClient.invalidateQueries({ queryKey: ["chat-messages", selectedConversationId] });
+      queryClient.invalidateQueries({ queryKey: ["chat-conversations", activeSessionId] });
+    },
+  });
+
+  const takeoverMutation = useMutation({
+    mutationFn: (humanTakeover: boolean) =>
+      api.chat.setTakeover(selectedConversationId!, humanTakeover),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversations", activeSessionId] });
     },
   });
@@ -130,8 +142,9 @@ export function Inbox() {
   }
 
   useEffect(() => {
-    threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
+    const el = threadBodyRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [lastMsgId, selectedConversationId]);
 
   // WS subscription — browser API lifecycle, useEffect is the correct tool here
   useEffect(() => {
@@ -139,16 +152,26 @@ export function Inbox() {
     let closed = false;
     const ws = openEventSocket(accessToken, (event) => {
       if (closed) return;
+
       if (event.type === "chat.message.received") {
         queryClient.invalidateQueries({ queryKey: ["chat-conversations", event.session_id] });
-        if (event.conversation_id === selectedIdRef.current) {
-          queryClient.invalidateQueries({ queryKey: ["chat-messages", selectedIdRef.current] });
-        } else {
+        queryClient.invalidateQueries({ queryKey: ["chat-messages", event.conversation_id] });
+        if (event.conversation_id !== selectedIdRef.current) {
           setUnread((n) => n + 1);
         }
       }
+
       if (event.type === "chat.message.sent") {
         queryClient.invalidateQueries({ queryKey: ["chat-messages", event.conversation_id] });
+      }
+
+      if (event.type === "chat.bot.replied") {
+        queryClient.invalidateQueries({ queryKey: ["chat-conversations", event.session_id] });
+        queryClient.invalidateQueries({ queryKey: ["chat-messages", event.conversation_id] });
+      }
+
+      if (event.type === "chat.bot.error" && event.conversation_id === selectedIdRef.current) {
+        setBotError(event.error as string ?? "bot reply failed");
       }
     });
     return () => {
@@ -186,9 +209,7 @@ export function Inbox() {
         </div>
 
         <div className="inbox-conv-list">
-          {convsLoading && (
-            <p className="inbox-empty">loading…</p>
-          )}
+          {convsLoading && <p className="inbox-empty">loading…</p>}
           {!convsLoading && conversations.length === 0 && (
             <div className="empty-state" style={{ padding: "48px 24px" }}>
               <p>no messages yet</p>
@@ -202,7 +223,7 @@ export function Inbox() {
               key={conv.id}
               conv={conv}
               active={conv.id === selectedConversationId}
-              onSelect={() => setSelectedConversationId(conv.id)}
+              onSelect={() => { setSelectedConversationId(conv.id); setBotError(null); }}
             />
           ))}
         </div>
@@ -220,13 +241,28 @@ export function Inbox() {
           <>
             <div className="inbox-thread-header">
               <span className="inbox-thread-name">
-                {activeConv
-                  ? jidToLabel(activeConv.remoteJid, activeConv.displayName)
-                  : "…"}
+                {activeConv ? jidToLabel(activeConv.remoteJid, activeConv.displayName) : "…"}
               </span>
+              {activeConv && (
+                <button
+                  className={`inbox-takeover-btn${activeConv.humanTakeover ? " active" : ""}`}
+                  disabled={takeoverMutation.isPending}
+                  onClick={() => takeoverMutation.mutate(!activeConv.humanTakeover)}
+                  title={activeConv.humanTakeover ? "resume bot" : "take over — bot paused for this conversation"}
+                >
+                  {activeConv.humanTakeover ? "resume bot" : "take over"}
+                </button>
+              )}
             </div>
 
-            <div className="inbox-thread-body">
+            {botError && (
+              <div className="inbox-bot-error">
+                <span>bot error: {botError}</span>
+                <button onClick={() => setBotError(null)}>✕</button>
+              </div>
+            )}
+
+            <div className="inbox-thread-body" ref={threadBodyRef}>
               {msgsLoading && <p className="inbox-empty">loading…</p>}
               {!msgsLoading && messages.length === 0 && (
                 <p className="inbox-empty">no messages in this conversation</p>
@@ -234,7 +270,6 @@ export function Inbox() {
               {messages.map((msg) => (
                 <MessageBubble key={msg.id} msg={msg} />
               ))}
-              <div ref={threadEndRef} />
             </div>
 
             <div className="inbox-compose">

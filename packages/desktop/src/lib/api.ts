@@ -1,21 +1,61 @@
 const BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
+async function buildHeaders(token: string | null, init?: HeadersInit, body?: BodyInit | null) {
+  const headers = new Headers(init);
+  if (body != null && !(body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  return headers;
+}
+
 async function apiFetch<T>(
   path: string,
   options: RequestInit & { skipAuth?: boolean } = {}
 ): Promise<T> {
   const { skipAuth, ...rest } = options;
-  const headers = new Headers(rest.headers);
-  if (rest.body != null && !(rest.body instanceof FormData) && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
+
+  if (skipAuth) {
+    const headers = await buildHeaders(null, rest.headers, rest.body);
+    const res = await fetch(`${BASE}${path}`, { ...rest, headers });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw Object.assign(new Error(body.error ?? String(res.status)), { status: res.status });
+    }
+    return res.json() as Promise<T>;
   }
 
-  if (!skipAuth) {
-    const token = localStorage.getItem("access_token");
-    if (token) headers.set("Authorization", `Bearer ${token}`);
-  }
-
+  // Authenticated request — try once, then refresh-and-retry on 401
+  const token = localStorage.getItem("access_token");
+  const headers = await buildHeaders(token, rest.headers, rest.body);
   const res = await fetch(`${BASE}${path}`, { ...rest, headers });
+
+  if (res.status === 401) {
+    const refreshToken = localStorage.getItem("refresh_token");
+    if (refreshToken) {
+      try {
+        const refreshRes = await fetch(`${BASE}/api/v1/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+        if (refreshRes.ok) {
+          const { access_token, refresh_token } = await refreshRes.json() as { access_token: string; refresh_token: string };
+          localStorage.setItem("access_token", access_token);
+          localStorage.setItem("refresh_token", refresh_token);
+          const retryHeaders = await buildHeaders(access_token, rest.headers, rest.body);
+          const retry = await fetch(`${BASE}${path}`, { ...rest, headers: retryHeaders });
+          if (!retry.ok) {
+            const body = await retry.json().catch(() => ({}));
+            throw Object.assign(new Error(body.error ?? String(retry.status)), { status: retry.status });
+          }
+          return retry.json() as Promise<T>;
+        }
+      } catch {
+        // Refresh failed — fall through to throw the 401
+      }
+    }
+  }
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -90,6 +130,8 @@ export type ChatInboxMessage = {
   role: "user" | "assistant" | "human";
   body: string;
   waMessageId: string | null;
+  tokensIn: number | null;
+  tokensOut: number | null;
   createdAt: string;
 };
 
@@ -98,9 +140,17 @@ export type ChatConversation = {
   waSessionId: string;
   remoteJid: string;
   displayName: string | null;
+  humanTakeover: boolean;
   lastMessageAt: string;
   createdAt: string;
   messages: ChatInboxMessage[];
+};
+
+export type ChatStats = {
+  todayReplies: number;
+  todayTokens: number;
+  monthReplies: number;
+  monthTokens: number;
 };
 
 export type DashboardStats = {
@@ -242,6 +292,14 @@ export const api = {
     health: () => apiFetch<ChatHealth>("/api/v1/chat/health"),
 
     healthCheck: () => apiFetch<ChatHealthCheck>("/api/v1/chat/health/check", { method: "POST" }),
+
+    stats: () => apiFetch<ChatStats>("/api/v1/chat/stats"),
+
+    setTakeover: (conversationId: string, humanTakeover: boolean) =>
+      apiFetch<ChatConversation>(`/api/v1/chat/conversations/${conversationId}/takeover`, {
+        method: "PATCH",
+        body: JSON.stringify({ humanTakeover }),
+      }),
 
     getConfig: (waSessionId: string) =>
       apiFetch<ChatbotConfig>(`/api/v1/chat/config/${waSessionId}`),

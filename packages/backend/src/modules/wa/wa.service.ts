@@ -4,7 +4,8 @@ import { prisma } from "@clawster/db";
 import { waRegistrySet, waRegistryGet, waRegistryRemove } from "./wa.registry";
 import { waHub } from "./wa.hub";
 import { useDBAuthState } from "./wa.auth";
-import { silentLogger } from "../../logger";
+import { silentLogger, log } from "../../logger";
+import { enqueueBotReply } from "../chatbot/chatbot.worker";
 
 export async function spawnSession(sessionId: string, userId: string): Promise<void> {
   const { version } = await fetchLatestBaileysVersion();
@@ -54,14 +55,25 @@ export async function spawnSession(sessionId: string, userId: string): Promise<v
           create: { waSessionId: sessionId, remoteJid, displayName: (!isOutbound ? msg.pushName : null) ?? null },
         });
 
-        const chatMessage = await prisma.chatMessage.create({
-          data: {
-            conversationId: conversation.id,
-            role: isOutbound ? "human" : "user",
-            body,
-            waMessageId,
-          },
-        });
+        let chatMessage;
+        try {
+          chatMessage = await prisma.chatMessage.create({
+            data: {
+              conversationId: conversation.id,
+              role: isOutbound ? "human" : "user",
+              body,
+              waMessageId,
+            },
+          });
+        } catch (err) {
+          // P2002 = unique constraint violation on wa_message_id.
+          // Baileys redelivered a message we already stored — skip the rest.
+          if (err && typeof err === "object" && "code" in err && (err as { code: string }).code === "P2002") {
+            log.info(`dedup — skipping redelivered message ${waMessageId}`);
+            continue;
+          }
+          throw err;
+        }
 
         waHub.emit(userId, {
           type: "chat.message.received",
@@ -70,8 +82,20 @@ export async function spawnSession(sessionId: string, userId: string): Promise<v
           session_id: sessionId,
           remote_jid: remoteJid,
         });
-      } catch {
+
+        // Trigger bot auto-reply for inbound messages only
+        if (!isOutbound) {
+          log.info(`inbound message received — evaluating bot (${remoteJid})`);
+          enqueueBotReply({
+            conversationId: conversation.id,
+            waSessionId: sessionId,
+            userId,
+            remoteJid,
+          }).catch((err) => log.error("bot enqueue failed", err));
+        }
+      } catch (err) {
         // don't crash the WA connection on inbox errors
+        log.error("inbox handler error", err);
       }
     }
   });

@@ -153,14 +153,19 @@ function ChatbotConfigForm({
         </div>
 
         <div className="settings-field">
-          <span className="settings-field-label">max reply tokens</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span className="settings-field-label">max reply tokens</span>
+            <span className="muted" style={{ fontSize: 10 }}>
+              0 = no limit · reasoning models may need 0 or 8192+
+            </span>
+          </div>
           <input
             className="auth-input"
             type="number"
-            min={64}
-            max={4096}
-            step={64}
-            style={{ width: 80, fontSize: 13 }}
+            min={0}
+            max={16384}
+            step={256}
+            style={{ width: 90, fontSize: 13 }}
             value={maxTokens}
             onChange={(e) => setMaxTokens(Number(e.target.value))}
           />
@@ -173,7 +178,11 @@ function ChatbotConfigForm({
               className="select-input"
               style={{ width: "auto", fontSize: 13 }}
               value={quietStart ?? ""}
-              onChange={(e) => setQuietStart(e.target.value === "" ? null : Number(e.target.value))}
+              onChange={(e) => {
+                const val = e.target.value === "" ? null : Number(e.target.value);
+                setQuietStart(val);
+                if (val === null) setQuietEnd(null);
+              }}
             >
               <option value="">off</option>
               {HOUR_OPTIONS.map((h) => <option key={h} value={h}>{formatHour(h)}</option>)}
@@ -279,7 +288,7 @@ function ChatbotConfigForm({
           className="template-textarea"
           rows={8}
           maxLength={8000}
-          placeholder={"You are a helpful sales assistant for [company name].\n\nOnly answer questions about our products. If you don't know, say so.\n\n=== PRODUCT INFO ===\n..."}
+          placeholder={"You are a friendly sales assistant for [Company Name], replying to WhatsApp messages.\n\nReply in casual Malaysian style — mix simple English and Malay naturally (lah, boleh, okay, tak pe). Keep replies to 1-2 short sentences, like real chat.\n\n=== PRODUCT INFO ===\nProduct: ...\nPrice: ...\n\nIf you don't know something, say so and offer to connect with a human."}
           value={systemPrompt}
           onChange={(e) => setSystemPrompt(e.target.value)}
         />

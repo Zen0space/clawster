@@ -1744,9 +1744,13 @@ html, body, #root {
 }
 
 .inbox-thread-header {
-  padding: 18px 24px;
+  padding: 12px 16px;
   border-bottom: 1px solid #21262d;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .inbox-thread-name {
@@ -1799,6 +1803,70 @@ html, body, #root {
   background: rgba(63, 185, 80, 0.08);
   border: 1px solid rgba(63, 185, 80, 0.2);
 }
+
+.inbox-bubble.bot {
+  background: rgba(121, 192, 255, 0.08);
+  border-color: rgba(121, 192, 255, 0.2);
+}
+
+.inbox-bubble-bot-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #79c0ff;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.inbox-conv-bot { color: #79c0ff; }
+
+.inbox-takeover-btn {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  color: #7d8590;
+  background: transparent;
+  border: 1px solid #30363d;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
+.inbox-takeover-btn:hover { color: #e6edf3; border-color: #7d8590; }
+.inbox-takeover-btn.active {
+  color: #3fb950;
+  border-color: #3fb95044;
+  background: rgba(63, 185, 80, 0.08);
+}
+
+.inbox-bot-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  font-size: 11px;
+  color: #f85149;
+  background: rgba(248, 81, 73, 0.08);
+  border-bottom: 1px solid rgba(248, 81, 73, 0.2);
+  flex-shrink: 0;
+}
+
+.inbox-bot-error button {
+  background: none;
+  border: none;
+  color: #f85149;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.inbox-bot-error button:hover { opacity: 1; }
 
 .inbox-bubble-body {
   font-size: 13px;

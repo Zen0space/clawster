@@ -3,7 +3,7 @@ import { prisma } from "@clawster/db";
 import { boss } from "../worker/boss";
 import { CHAT_REPLY_JOB } from "./chatbot.worker";
 import { getChatClient, getChatModel, isChatConfigured } from "./llm-client";
-import { listConversations, listMessages, getChatbotConfig, saveChatbotConfig } from "./chatbot.service";
+import { listConversations, listMessages, getChatbotConfig, saveChatbotConfig, getChatStats } from "./chatbot.service";
 
 
 type LastCheck = { ok: boolean; latencyMs?: number; error?: string; checkedAt: string };
@@ -84,7 +84,9 @@ export async function chatbotRoutes(app: FastifyInstance) {
 
     const b = request.body as Record<string, unknown>;
     const systemPrompt = typeof b.systemPrompt === "string" ? b.systemPrompt : "";
-    const maxTokens = Math.min(4096, Math.max(64, Number(b.maxTokens) || 1024));
+    // 0 = omit max_tokens entirely (unconstrained); otherwise clamp to [64, 16384]
+    const rawMax = Number(b.maxTokens);
+    const maxTokens = rawMax === 0 ? 0 : Math.min(16384, Math.max(64, rawMax || 4096));
     const dailyReplyCap = Math.min(1000, Math.max(1, Number(b.dailyReplyCap) || 200));
     const replyMinDelaySec = Math.min(300, Math.max(1, Number(b.replyMinDelaySec) || 15));
     const replyMaxDelaySec = Math.min(600, Math.max(replyMinDelaySec, Number(b.replyMaxDelaySec) || 45));
@@ -92,15 +94,39 @@ export async function chatbotRoutes(app: FastifyInstance) {
       ? (b.priorityJids as unknown[]).filter((j): j is string => typeof j === "string")
       : [];
     const quietStart = b.quietStart == null ? null : Math.min(23, Math.max(0, Number(b.quietStart)));
-    const quietEnd = b.quietEnd == null ? null : Math.min(23, Math.max(0, Number(b.quietEnd)));
+    // Force quietEnd to null if quietStart is null — keeps the pair consistent
+    const quietEnd = quietStart == null ? null : (b.quietEnd == null ? null : Math.min(23, Math.max(0, Number(b.quietEnd))));
     const enabled = Boolean(b.enabled);
 
     if (systemPrompt.length > 8000) return reply.status(400).send({ error: "system_prompt_too_long" });
-    if ((quietStart == null) !== (quietEnd == null)) return reply.status(400).send({ error: "quiet_hours_incomplete" });
+    if (quietStart != null && quietEnd == null) return reply.status(400).send({ error: "quiet_hours_incomplete" });
 
     const config = await saveChatbotConfig(waSessionId, { enabled, systemPrompt, maxTokens, dailyReplyCap, replyMinDelaySec, replyMaxDelaySec, priorityJids, quietStart, quietEnd });
     await prisma.auditLog.create({ data: { userId: request.user.sub, action: "chatbot.config.save", subject: waSessionId } });
     return config;
+  });
+
+  // GET /chat/stats — token usage for the current user
+  app.get("/chat/stats", { onRequest: [app.authenticate] }, async (request) => {
+    return getChatStats(request.user.sub);
+  });
+
+  // PATCH /chat/conversations/:id/takeover
+  app.patch("/chat/conversations/:id/takeover", { onRequest: [app.authenticate] }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as Record<string, unknown>;
+    const humanTakeover = Boolean(body?.humanTakeover);
+
+    const conversation = await prisma.chatConversation.findFirst({
+      where: { id, waSession: { userId: request.user.sub } },
+    });
+    if (!conversation) return reply.status(404).send({ error: "not_found" });
+
+    const updated = await prisma.chatConversation.update({
+      where: { id },
+      data: { humanTakeover },
+    });
+    return updated;
   });
 
   // GET /chat/conversations?waSessionId=...
