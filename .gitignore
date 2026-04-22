@@ -56,3 +56,4 @@ desktop.ini
 # ─── Misc ────────────────────────────────────────────────────────────────────
 .cache/
 coverage/
+docs/development
