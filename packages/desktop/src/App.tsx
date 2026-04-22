@@ -8,6 +8,7 @@ import { Sessions } from "./pages/Sessions";
 import { Contacts } from "./pages/Contacts";
 import { Campaigns } from "./pages/Campaigns";
 import { Inbox } from "./pages/Inbox";
+import { Chatbot } from "./pages/Chatbot";
 import { Settings } from "./pages/Settings";
 import { Changelog } from "./pages/Changelog";
 import pkg from "../package.json";
@@ -18,6 +19,7 @@ const NAV: { id: AppPage; label: string }[] = [
   { id: "contacts", label: "contacts" },
   { id: "campaigns", label: "campaigns" },
   { id: "inbox", label: "inbox" },
+  { id: "chatbot", label: "chatbot" },
 ];
 
 function Layout({ children }: { children: React.ReactNode }) {
@@ -98,6 +100,7 @@ export function App() {
       {appPage === "contacts" && <Contacts />}
       {appPage === "campaigns" && <Campaigns />}
       {appPage === "inbox" && <Inbox />}
+      {appPage === "chatbot" && <Chatbot />}
       {appPage === "settings" && <Settings />}
       {appPage === "changelog" && <Changelog />}
     </Layout>
