@@ -57,6 +57,19 @@ export type CreateCampaignInput = {
   quietStart?: number | null; quietEnd?: number | null; typingSim?: boolean;
 };
 
+export type ChatbotConfig = {
+  waSessionId: string;
+  enabled: boolean;
+  systemPrompt: string;
+  maxTokens: number;
+  dailyReplyCap: number;
+  replyMinDelaySec: number;
+  replyMaxDelaySec: number;
+  priorityJids: string[];
+  quietStart: number | null;
+  quietEnd: number | null;
+};
+
 export type ChatHealthCheck = {
   ok: boolean;
   latencyMs?: number;
@@ -229,6 +242,15 @@ export const api = {
     health: () => apiFetch<ChatHealth>("/api/v1/chat/health"),
 
     healthCheck: () => apiFetch<ChatHealthCheck>("/api/v1/chat/health/check", { method: "POST" }),
+
+    getConfig: (waSessionId: string) =>
+      apiFetch<ChatbotConfig>(`/api/v1/chat/config/${waSessionId}`),
+
+    saveConfig: (waSessionId: string, data: Omit<ChatbotConfig, "waSessionId">) =>
+      apiFetch<ChatbotConfig>(`/api/v1/chat/config/${waSessionId}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
   },
 
   campaigns: {

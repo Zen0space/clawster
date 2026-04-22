@@ -3,7 +3,8 @@ import { prisma } from "@clawster/db";
 import { boss } from "../worker/boss";
 import { CHAT_REPLY_JOB } from "./chatbot.worker";
 import { getChatClient, getChatModel, isChatConfigured } from "./llm-client";
-import { listConversations, listMessages } from "./chatbot.service";
+import { listConversations, listMessages, getChatbotConfig, saveChatbotConfig } from "./chatbot.service";
+
 
 type LastCheck = { ok: boolean; latencyMs?: number; error?: string; checkedAt: string };
 let lastCheck: LastCheck | null = null;
@@ -65,6 +66,41 @@ export async function chatbotRoutes(app: FastifyInstance) {
     }
     const result = await runHealthCheck();
     return result;
+  });
+
+  // GET /chat/config/:waSessionId
+  app.get("/chat/config/:waSessionId", { onRequest: [app.authenticate] }, async (request, reply) => {
+    const { waSessionId } = request.params as { waSessionId: string };
+    const session = await prisma.waSession.findFirst({ where: { id: waSessionId, userId: request.user.sub } });
+    if (!session) return reply.status(404).send({ error: "not_found" });
+    return getChatbotConfig(waSessionId);
+  });
+
+  // PUT /chat/config/:waSessionId
+  app.put("/chat/config/:waSessionId", { onRequest: [app.authenticate] }, async (request, reply) => {
+    const { waSessionId } = request.params as { waSessionId: string };
+    const session = await prisma.waSession.findFirst({ where: { id: waSessionId, userId: request.user.sub } });
+    if (!session) return reply.status(404).send({ error: "not_found" });
+
+    const b = request.body as Record<string, unknown>;
+    const systemPrompt = typeof b.systemPrompt === "string" ? b.systemPrompt : "";
+    const maxTokens = Math.min(4096, Math.max(64, Number(b.maxTokens) || 1024));
+    const dailyReplyCap = Math.min(1000, Math.max(1, Number(b.dailyReplyCap) || 200));
+    const replyMinDelaySec = Math.min(300, Math.max(1, Number(b.replyMinDelaySec) || 15));
+    const replyMaxDelaySec = Math.min(600, Math.max(replyMinDelaySec, Number(b.replyMaxDelaySec) || 45));
+    const priorityJids = Array.isArray(b.priorityJids)
+      ? (b.priorityJids as unknown[]).filter((j): j is string => typeof j === "string")
+      : [];
+    const quietStart = b.quietStart == null ? null : Math.min(23, Math.max(0, Number(b.quietStart)));
+    const quietEnd = b.quietEnd == null ? null : Math.min(23, Math.max(0, Number(b.quietEnd)));
+    const enabled = Boolean(b.enabled);
+
+    if (systemPrompt.length > 8000) return reply.status(400).send({ error: "system_prompt_too_long" });
+    if ((quietStart == null) !== (quietEnd == null)) return reply.status(400).send({ error: "quiet_hours_incomplete" });
+
+    const config = await saveChatbotConfig(waSessionId, { enabled, systemPrompt, maxTokens, dailyReplyCap, replyMinDelaySec, replyMaxDelaySec, priorityJids, quietStart, quietEnd });
+    await prisma.auditLog.create({ data: { userId: request.user.sub, action: "chatbot.config.save", subject: waSessionId } });
+    return config;
   });
 
   // GET /chat/conversations?waSessionId=...

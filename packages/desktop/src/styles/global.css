@@ -1588,6 +1588,37 @@ html, body, #root {
   background: rgba(248, 81, 73, 0.18);
 }
 
+/* ── chatbot config ───────────────────────────────────────────────────────── */
+
+.chatbot-config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 560px;
+}
+
+.chatbot-config-banner {
+  background: rgba(187, 128, 9, 0.1);
+  border: 1px solid rgba(187, 128, 9, 0.35);
+  color: #e3b341;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.chatbot-config-banner code {
+  background: rgba(187, 128, 9, 0.2);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: inherit;
+}
+
+.chatbot-prompt-section {
+  display: flex;
+  flex-direction: column;
+}
+
 /* ── ai env snippet ───────────────────────────────────────────────────────── */
 
 .ai-env-snippet {

@@ -25,9 +25,18 @@ export async function spawnSession(sessionId: string, userId: string): Promise<v
   socket.ev.on("messages.upsert", async ({ messages: msgs, type }) => {
     if (type !== "notify") return;
     for (const msg of msgs) {
-      if (msg.key.fromMe || !msg.key.remoteJid || !msg.message) continue;
+      if (!msg.key.remoteJid || !msg.message) continue;
       const remoteJid = msg.key.remoteJid;
       if (remoteJid.endsWith("@g.us") || remoteJid.endsWith("@broadcast")) continue;
+
+      const isOutbound = msg.key.fromMe === true;
+      const waMessageId = msg.key.id ?? null;
+
+      // Skip outbound messages already stored by the Clawster inbox send flow
+      if (isOutbound && waMessageId) {
+        const existing = await prisma.chatMessage.findFirst({ where: { waMessageId } });
+        if (existing) continue;
+      }
 
       const body =
         msg.message.conversation ??
@@ -39,17 +48,18 @@ export async function spawnSession(sessionId: string, userId: string): Promise<v
           where: { waSessionId_remoteJid: { waSessionId: sessionId, remoteJid } },
           update: {
             lastMessageAt: new Date(),
-            ...(msg.pushName ? { displayName: msg.pushName } : {}),
+            // Only update displayName from inbound messages (contact's name, not ours)
+            ...((!isOutbound && msg.pushName) ? { displayName: msg.pushName } : {}),
           },
-          create: { waSessionId: sessionId, remoteJid, displayName: msg.pushName ?? null },
+          create: { waSessionId: sessionId, remoteJid, displayName: (!isOutbound ? msg.pushName : null) ?? null },
         });
 
         const chatMessage = await prisma.chatMessage.create({
           data: {
             conversationId: conversation.id,
-            role: "user",
+            role: isOutbound ? "human" : "user",
             body,
-            waMessageId: msg.key.id ?? null,
+            waMessageId,
           },
         });
 
