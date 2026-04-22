@@ -22,6 +22,50 @@ export async function spawnSession(sessionId: string, userId: string): Promise<v
 
   socket.ev.on("creds.update", saveCreds);
 
+  socket.ev.on("messages.upsert", async ({ messages: msgs, type }) => {
+    if (type !== "notify") return;
+    for (const msg of msgs) {
+      if (msg.key.fromMe || !msg.key.remoteJid || !msg.message) continue;
+      const remoteJid = msg.key.remoteJid;
+      if (remoteJid.endsWith("@g.us") || remoteJid.endsWith("@broadcast")) continue;
+
+      const body =
+        msg.message.conversation ??
+        msg.message.extendedTextMessage?.text ??
+        "[media]";
+
+      try {
+        const conversation = await prisma.chatConversation.upsert({
+          where: { waSessionId_remoteJid: { waSessionId: sessionId, remoteJid } },
+          update: {
+            lastMessageAt: new Date(),
+            ...(msg.pushName ? { displayName: msg.pushName } : {}),
+          },
+          create: { waSessionId: sessionId, remoteJid, displayName: msg.pushName ?? null },
+        });
+
+        const chatMessage = await prisma.chatMessage.create({
+          data: {
+            conversationId: conversation.id,
+            role: "user",
+            body,
+            waMessageId: msg.key.id ?? null,
+          },
+        });
+
+        waHub.emit(userId, {
+          type: "chat.message.received",
+          conversation_id: conversation.id,
+          message_id: chatMessage.id,
+          session_id: sessionId,
+          remote_jid: remoteJid,
+        });
+      } catch {
+        // don't crash the WA connection on inbox errors
+      }
+    }
+  });
+
   socket.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
     if (qr) {
       waHub.emit(userId, { type: "wa.qr", session_id: sessionId, qr });

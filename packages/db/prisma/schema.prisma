@@ -52,8 +52,9 @@ model WaSession {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  campaigns Campaign[]
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaigns         Campaign[]
+  chatConversations ChatConversation[]
 
   @@index([userId])
   @@map("wa_sessions")
@@ -153,6 +154,36 @@ model CampaignMessage {
   @@index([campaignId])
   @@index([status, scheduledAt])
   @@map("campaign_messages")
+}
+
+model ChatConversation {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  waSessionId   String   @map("wa_session_id") @db.Uuid
+  remoteJid     String   @map("remote_jid")
+  displayName   String?  @map("display_name")
+  lastMessageAt DateTime @default(now()) @map("last_message_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  waSession WaSession     @relation(fields: [waSessionId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
+
+  @@unique([waSessionId, remoteJid])
+  @@index([waSessionId, lastMessageAt(sort: Desc)])
+  @@map("chat_conversations")
+}
+
+model ChatMessage {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId String   @map("conversation_id") @db.Uuid
+  role           String   // user | assistant | human
+  body           String   @db.Text
+  waMessageId    String?  @map("wa_message_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("chat_messages")
 }
 
 model AuditLog {

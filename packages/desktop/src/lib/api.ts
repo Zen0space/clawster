@@ -57,6 +57,25 @@ export type CreateCampaignInput = {
   quietStart?: number | null; quietEnd?: number | null; typingSim?: boolean;
 };
 
+export type ChatInboxMessage = {
+  id: string;
+  conversationId: string;
+  role: "user" | "assistant" | "human";
+  body: string;
+  waMessageId: string | null;
+  createdAt: string;
+};
+
+export type ChatConversation = {
+  id: string;
+  waSessionId: string;
+  remoteJid: string;
+  displayName: string | null;
+  lastMessageAt: string;
+  createdAt: string;
+  messages: ChatInboxMessage[];
+};
+
 export type DashboardStats = {
   completedCampaigns: number;
   failedCampaigns: number;
@@ -173,6 +192,18 @@ export const api = {
     get: (id: string) =>
       apiFetch<{ id: string; mimeType: string; byteSize: number; sha256: string; createdAt: string }>(
         `/api/v1/media/${id}`
+      ),
+  },
+
+  chat: {
+    listConversations: (waSessionId: string, page = 1, limit = 20) =>
+      apiFetch<{ items: ChatConversation[]; total: number; page: number; limit: number }>(
+        `/api/v1/chat/conversations?waSessionId=${encodeURIComponent(waSessionId)}&page=${page}&limit=${limit}`
+      ),
+
+    listMessages: (conversationId: string, page = 1, limit = 50) =>
+      apiFetch<{ items: ChatInboxMessage[]; total: number; page: number; limit: number }>(
+        `/api/v1/chat/conversations/${conversationId}/messages?page=${page}&limit=${limit}`
       ),
   },
 
