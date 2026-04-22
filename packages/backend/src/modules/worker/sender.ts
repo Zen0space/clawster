@@ -10,16 +10,32 @@ function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 function randBetween(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function addJitter(sec: number, factor = 0.15) { return Math.max(1, Math.floor(sec + sec * factor * (Math.random() * 2 - 1))); }
 
+// Quiet hours are configured in Asia/Kuala_Lumpur (no DST, UTC+8).
+// Server may run in UTC; compute the campaign clock explicitly.
+const APP_TZ_OFFSET_MIN = 8 * 60;
+
+function appTzNow(): Date {
+  return new Date(Date.now() + APP_TZ_OFFSET_MIN * 60_000);
+}
+
+function getAppHour(): number {
+  return appTzNow().getUTCHours();
+}
+
 function isQuietHour(quietStart: number | null, quietEnd: number | null): boolean {
   if (quietStart == null || quietEnd == null) return false;
-  const h = new Date().getHours();
+  const h = getAppHour();
   return quietStart < quietEnd ? (h >= quietStart && h < quietEnd) : (h >= quietStart || h < quietEnd);
 }
 
 function quietResumeDate(quietEnd: number): Date {
-  const d = new Date(); d.setHours(quietEnd, 1, 0, 0);
-  if (d <= new Date()) d.setDate(d.getDate() + 1);
-  return d;
+  const shifted = appTzNow();
+  const y = shifted.getUTCFullYear();
+  const m = shifted.getUTCMonth();
+  const d = shifted.getUTCDate();
+  let targetUtcMs = Date.UTC(y, m, d, quietEnd, 1, 0) - APP_TZ_OFFSET_MIN * 60_000;
+  if (targetUtcMs <= Date.now()) targetUtcMs += 24 * 60 * 60 * 1000;
+  return new Date(targetUtcMs);
 }
 
 async function broadcastProgress(campaignId: string, userId: string) {

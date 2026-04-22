@@ -61,9 +61,16 @@ function formatHour12(h: number): string {
 
 const HOUR_OPTIONS: number[] = Array.from({ length: 24 }, (_, i) => i);
 
+// Quiet hours live in Asia/Kuala_Lumpur (no DST, UTC+8) — match the backend clock
+// so the sleep banner agrees with the worker regardless of where the desktop runs.
+const APP_TZ_OFFSET_MIN = 8 * 60;
+function getAppHour(): number {
+  return new Date(Date.now() + APP_TZ_OFFSET_MIN * 60_000).getUTCHours();
+}
+
 function isSleepingNow(start: number | null, end: number | null): boolean {
   if (start == null || end == null) return false;
-  const h = new Date().getHours();
+  const h = getAppHour();
   return start < end ? (h >= start && h < end) : (h >= start || h < end);
 }
 
@@ -451,7 +458,14 @@ function CampaignDetail({ campaignId, onBack }: { campaignId: string; onBack: ()
           <h1 className="page-title">{campaign.name}</h1>
           <p className="page-subtitle">{new Date(campaign.createdAt).toLocaleDateString()}</p>
         </div>
-        <StatusBadge status={campaign.status} />
+        <div className="page-header-right">
+          <StatusBadge status={campaign.status} />
+          <span className="page-header-time">
+            {campaign.startedAt
+              ? `started at ${new Date(campaign.startedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+              : `created at ${new Date(campaign.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`}
+          </span>
+        </div>
       </div>
 
       {campaign.status === "running" && isSleepingNow(campaign.quietStart, campaign.quietEnd) && (

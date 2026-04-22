@@ -22,7 +22,7 @@ export const accessTokenAtom = atomWithStorage<string | null>("access_token", nu
 export const refreshTokenAtom = atomWithStorage<string | null>("refresh_token", null, rawTokenStorage);
 
 // ── Navigation ─────────────────────────────────────────────────────────────
-export type AppPage = "dashboard" | "sessions" | "contacts" | "campaigns" | "settings";
+export type AppPage = "dashboard" | "sessions" | "contacts" | "campaigns" | "settings" | "changelog";
 export type AuthPage = "login" | "signup";
 export const appPageAtom = atom<AppPage>("dashboard");
 export const authPageAtom = atom<AuthPage>("login");

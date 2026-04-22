@@ -8,6 +8,8 @@ import { Sessions } from "./pages/Sessions";
 import { Contacts } from "./pages/Contacts";
 import { Campaigns } from "./pages/Campaigns";
 import { Settings } from "./pages/Settings";
+import { Changelog } from "./pages/Changelog";
+import pkg from "../package.json";
 
 const NAV: { id: AppPage; label: string }[] = [
   { id: "dashboard", label: "dashboard" },
@@ -39,6 +41,13 @@ function Layout({ children }: { children: React.ReactNode }) {
             </button>
           ))}
         </nav>
+        <button
+          className={`sidebar-version${appPage === "changelog" ? " active" : ""}`}
+          title="view changelog"
+          onClick={() => setAppPage("changelog")}
+        >
+          v{pkg.version}
+        </button>
         <div className="sidebar-footer">
           <div className="sidebar-footer-row">
             <p className="sidebar-email">{user?.email}</p>
@@ -83,6 +92,7 @@ export function App() {
       {appPage === "contacts" && <Contacts />}
       {appPage === "campaigns" && <Campaigns />}
       {appPage === "settings" && <Settings />}
+      {appPage === "changelog" && <Changelog />}
     </Layout>
   );
 }

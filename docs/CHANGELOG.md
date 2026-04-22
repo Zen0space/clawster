@@ -6,81 +6,97 @@ All notable changes to Clawster are documented here.
 
 ## Releases
 
+## [v1.1.2] — 2026-04-22
+
+### New
+- **Changelog** — click the version number at the bottom of the sidebar to open the full release history inside the app.
+
+### Improved
+- **Campaign details** — the top of each campaign page now shows the time it was started (or created, if it hasn't started yet), so you always know when activity began.
+- **Sleep hours** — the sleep window and the "💤 sleep hours active" banner now both use the same clock, so they always agree on whether a campaign is sleeping or sending.
+
+### Fixed
+- **Warmup, Safe, and Normal campaigns not sending** — campaigns with sleep hours configured were stuck in sleep mode all day. Sending now correctly resumes during daytime hours as expected.
+
+---
+
 ## [v1.1.1] — 2026-04-22
 
 ### Fixed
-- Backend no longer crashes on boot when MinIO is not configured. The MinIO/S3 integration has been removed; media uploads are stored on the backend's local filesystem again. In production, mount a persistent volume at the backend's media directory (configurable via `MEDIA_ROOT`) so uploads survive redeploys.
+- Fixed a startup issue that could prevent Clawster from launching. Image attachments are stored more reliably and no longer need extra setup to work.
 
 ---
 
 ## [v1.1.0] — 2026-04-22
 
 ### New
-- **Settings page** — click the gear icon in the sidebar to view your account: email with a verified badge (confirming your license key), display name, role, and member-since date.
+- **Settings page** — click the gear icon in the sidebar to view your account: your email with a verified badge, display name, role, and member‑since date.
 - **Dashboard stats** — the dashboard now shows four live counters: campaigns completed, campaigns failed, campaigns currently running, and devices connected.
-- **MinIO / S3 media storage** — media uploads can now be stored in a self-hosted MinIO bucket (or any S3-compatible service) instead of local disk. Configure via environment variables.
-- **Backup & restore scripts** — new scripts let you take a full database + media snapshot and restore it to any date, with optional offsite upload via rclone.
+- **Shared image storage** — optionally keep attached images in a shared storage location so they're available across machines.
+- **Backup & restore tools** — new scripts let you save a full snapshot of your contacts, campaigns, and images, and restore it later. Backups can also be uploaded to cloud storage.
+
+### Redesigned
+- **Sleep hours** — "quiet hours" is now called "sleep hours" everywhere. Start and end times are picked in 12‑hour AM/PM format (e.g. 11 PM – 7 AM) instead of raw 24‑hour numbers.
 
 ### Improved
-- **Sleep hours** — "quiet hours" is now called "sleep hours" throughout the app. Start and end times are displayed and selected in 12-hour AM/PM format (e.g. 11 PM – 7 AM) instead of raw 24-hour numbers.
-- **Sleep banner** — when a running campaign is inside its sleep window, a yellow banner now appears on the campaign detail page so you know why sending is paused and when it resumes.
-- **Server hint** — running campaign pages now show a note confirming that campaigns keep running on the server even after closing the app window.
+- **Sleep banner** — when a running campaign is inside its sleep window, a yellow banner appears on the campaign page so you know why sending paused and when it will resume.
+- **Server note** — running campaign pages now remind you that sending keeps going even if you close the app.
 
 ### Fixed
-- Changing a campaign's name, message, or contact list no longer resets the pacing preset to "custom".
+- Changing a campaign's name, message, or contact list no longer resets the pacing preset back to "custom".
 
 ---
 
 ## [v1.0.6] — 2026-04-21
 
 ### Fixed
-- Sign-up and login no longer fail silently — the app was not connecting to the backend in previous releases due to a misconfigured build setting.
+- Sign‑up and login now work reliably. Earlier versions couldn't reach Clawster's servers, so the forms would fail without an error.
 
 ---
 
 ## [v1.0.5] — 2026-04-21
 
 ### Fixed
-- macOS: opening the app no longer results in a hard "move to trash" block. The installer is now ad-hoc signed, so you can allow it via System Settings → Privacy & Security → Open Anyway.
+- **macOS** — opening Clawster no longer hits a hard "move to trash" block. If macOS still warns you, allow it from System Settings → Privacy & Security → Open Anyway.
 
 ---
 
 ## [v1.0.4] — 2026-04-21
 
 ### Fixed
-- Backend server failed to start when deployed with Docker — it was only reachable from inside the container itself.
+- Fixed an issue that left hosted installs of Clawster unreachable from outside the machine they were installed on.
 
 ---
 
 ## [v1.0.3] — 2026-04-21
 
 ### Improved
-- macOS (.dmg) and Windows (.exe) installers are now automatically attached to each GitHub release — no manual steps needed.
-- Release builds include SHA-256 checksums for file verification.
+- Mac (.dmg) and Windows (.exe) installers are now attached to every release automatically — no manual download steps needed.
+- Each installer ships with a checksum so you can verify the file is genuine before running it.
 
 ---
 
 ## [v1.0.2] — 2026-04-21
 
 ### Improved
-- Desktop installer binaries are now produced for every release.
+- Desktop installers are now built for every release.
 
 ---
 
 ## [v1.0.1] — 2026-04-21
 
-### Improved
-- Updated app icon across all platforms.
+### Redesigned
+- Updated Clawster's app icon across Mac and Windows.
 
 ---
 
 ## [v1.0.0] — 2026-04-21
 
 ### New
-- **License key required at sign-up** — each account is created with a unique license key. Keys are single-use and verified server-side.
-- **Contacts** — import contacts from a CSV file, add them manually, and organise them into named lists.
-- **Campaigns** — create WhatsApp broadcast campaigns with a message template, pick a contact list and a connected WhatsApp session, and configure humanised send pacing (random delays, daily cap, quiet hours, typing simulation).
-- **Image attachments** — attach a media file (image) to a campaign message.
-- **Campaign presets** — choose from built-in pacing presets (Careful, Moderate, Aggressive) when creating a campaign.
-- **WhatsApp session management** — connect and manage multiple WhatsApp accounts via QR-code pairing.
-- **Media library** — upload and reuse media assets across campaigns.
+- **License key at sign‑up** — each account is created with a unique one‑time license key.
+- **Contacts** — import contacts from a CSV file, add them by hand, and organise them into named lists.
+- **Campaigns** — create WhatsApp broadcast campaigns with a message template, pick a contact list and a connected WhatsApp account, and configure human‑like send pacing (random delays, daily cap, quiet hours, typing simulation).
+- **Image attachments** — attach an image to a campaign message.
+- **Campaign presets** — pick from built‑in pacing presets when creating a campaign, each tuned for a different risk level.
+- **WhatsApp accounts** — connect and manage multiple WhatsApp accounts via QR‑code pairing.
+- **Media library** — upload and reuse images across campaigns.
