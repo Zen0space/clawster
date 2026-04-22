@@ -1588,6 +1588,21 @@ html, body, #root {
   background: rgba(248, 81, 73, 0.18);
 }
 
+/* ── ai env snippet ───────────────────────────────────────────────────────── */
+
+.ai-env-snippet {
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 11px;
+  color: #79c0ff;
+  line-height: 1.8;
+  white-space: pre;
+  width: 100%;
+}
+
 /* ── inbox ────────────────────────────────────────────────────────────────── */
 
 .inbox-layout {

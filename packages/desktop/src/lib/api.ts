@@ -57,6 +57,20 @@ export type CreateCampaignInput = {
   quietStart?: number | null; quietEnd?: number | null; typingSim?: boolean;
 };
 
+export type ChatHealthCheck = {
+  ok: boolean;
+  latencyMs?: number;
+  error?: string;
+  checkedAt: string;
+};
+
+export type ChatHealth = {
+  configured: boolean;
+  baseUrl?: string;
+  model?: string;
+  lastCheck: ChatHealthCheck | null;
+};
+
 export type ChatInboxMessage = {
   id: string;
   conversationId: string;
@@ -211,6 +225,10 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ content }),
       }),
+
+    health: () => apiFetch<ChatHealth>("/api/v1/chat/health"),
+
+    healthCheck: () => apiFetch<ChatHealthCheck>("/api/v1/chat/health/check", { method: "POST" }),
   },
 
   campaigns: {
