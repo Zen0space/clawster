@@ -109,6 +109,24 @@ jobs:
       - name: Build db package
         run: pnpm --filter @clawster/db build
 
+      # Tauri v2 doesn't substitute env vars inside tauri.conf.json — inject the
+      # signing public key here before building so the updater can verify downloads.
+      - name: Inject Tauri signing public key into config
+        shell: bash
+        env:
+          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const p = 'packages/desktop/src-tauri/tauri.conf.json';
+            const c = JSON.parse(fs.readFileSync(p, 'utf8'));
+            if (!process.env.TAURI_SIGNING_PUBLIC_KEY) throw new Error('TAURI_SIGNING_PUBLIC_KEY secret not set');
+            c.plugins.updater.pubkey = process.env.TAURI_SIGNING_PUBLIC_KEY;
+            fs.writeFileSync(p, JSON.stringify(c, null, 2));
+          "
+          echo 'Injected pubkey, first 32 chars:'
+          node -e "console.log(JSON.parse(require('fs').readFileSync('packages/desktop/src-tauri/tauri.conf.json','utf8')).plugins.updater.pubkey.slice(0,32))"
+
       - name: Build desktop app
         working-directory: packages/desktop
         env:
