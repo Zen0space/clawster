@@ -309,6 +309,12 @@ export const api = {
         method: "PUT",
         body: JSON.stringify(data),
       }),
+
+    testBot: (waSessionId: string, messages: Array<{ role: "user" | "assistant"; content: string }>) =>
+      apiFetch<{ reply: string; tokensIn: number; tokensOut: number }>(`/api/v1/chat/config/${waSessionId}/test`, {
+        method: "POST",
+        body: JSON.stringify({ messages }),
+      }),
   },
 
   campaigns: {

@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAtomValue } from "jotai";
 import { api, type ChatbotConfig, type ChatHealth } from "../lib/api";
+import { openEventSocket } from "../lib/ws";
+import { accessTokenAtom } from "../atoms";
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i);
 
@@ -268,10 +271,147 @@ function ChatbotConfigForm({
   );
 }
 
+// ── Test bot modal ────────────────────────────────────────────────────────────
+
+type TestMessage = { role: "user" | "assistant"; content: string };
+
+function TestBotModal({ waSessionId, onClose }: { waSessionId: string; onClose: () => void }) {
+  const [messages, setMessages] = useState<TestMessage[]>([]);
+  const [draft, setDraft] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight;
+  }, [messages.length]);
+
+  async function send() {
+    const content = draft.trim();
+    if (!content || loading) return;
+    const next: TestMessage[] = [...messages, { role: "user", content }];
+    setMessages(next);
+    setDraft("");
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.chat.testBot(waSessionId, next);
+      setMessages([...next, { role: "assistant", content: res.reply }]);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ width: 520, maxHeight: "80vh", display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="auth-brand-name">test bot</span>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button className="btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => setMessages([])}>clear</button>
+            <button className="modal-close" onClick={onClose}>✕</button>
+          </div>
+        </div>
+        <p className="muted" style={{ fontSize: 11, padding: "0 20px 12px" }}>
+          chat with your bot using the saved knowledge base — nothing is sent to WhatsApp
+        </p>
+
+        <div ref={threadRef} style={{ flex: 1, overflowY: "auto", padding: "0 16px", display: "flex", flexDirection: "column", gap: 8, minHeight: 200 }}>
+          {messages.length === 0 && (
+            <p className="muted" style={{ fontSize: 12, textAlign: "center", marginTop: 40 }}>
+              send a message to start the test
+            </p>
+          )}
+          {messages.map((m, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+              <div style={{
+                maxWidth: "80%", padding: "8px 12px", borderRadius: 8, fontSize: 13,
+                background: m.role === "user" ? "var(--accent)" : "var(--surface-raised)",
+                color: m.role === "user" ? "#fff" : "var(--text-primary)",
+              }}>
+                {m.role === "assistant" && <span style={{ fontSize: 10, opacity: 0.6, display: "block", marginBottom: 2 }}>bot</span>}
+                {m.content}
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div style={{ display: "flex", justifyContent: "flex-start" }}>
+              <div style={{ padding: "8px 12px", borderRadius: 8, fontSize: 13, background: "var(--surface-raised)", color: "var(--text-muted)" }}>
+                thinking…
+              </div>
+            </div>
+          )}
+        </div>
+
+        {error && <p className="auth-error" style={{ margin: "8px 16px 0" }}>{error}</p>}
+
+        <div style={{ padding: 16, display: "flex", gap: 8, borderTop: "1px solid var(--border)" }}>
+          <textarea
+            className="inbox-compose-input"
+            rows={1}
+            placeholder="type a message… enter to send"
+            value={draft}
+            disabled={loading}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={handleKey}
+            style={{ flex: 1 }}
+          />
+          <button className="btn-primary inbox-compose-btn" disabled={!draft.trim() || loading} onClick={send}>
+            send
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Token usage widget ────────────────────────────────────────────────────────
+
+const MONTHLY_TOKEN_CAP = 1_000_000;
+
+function TokenUsageWidget({ tokenCapReached }: { tokenCapReached: boolean }) {
+  const { data: stats } = useQuery({ queryKey: ["chat-stats"], queryFn: () => api.chat.stats(), staleTime: 30_000 });
+
+  const usedThisMonth = stats?.monthTokens ?? 0;
+  const pct = Math.min(100, Math.round((usedThisMonth / MONTHLY_TOKEN_CAP) * 100));
+
+  return (
+    <div className="settings-card" style={{ marginBottom: 16 }}>
+      {tokenCapReached && (
+        <div style={{ background: "rgba(210,153,34,0.12)", border: "1px solid rgba(210,153,34,0.4)", borderRadius: 6, padding: "8px 12px", marginBottom: 12, fontSize: 12, color: "#d29922" }}>
+          monthly token cap reached — bot paused until next month
+        </div>
+      )}
+      <div className="settings-field">
+        <div>
+          <span className="settings-field-label">token usage this month</span>
+          <div style={{ marginTop: 4, width: 200, height: 4, background: "var(--border)", borderRadius: 2 }}>
+            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: pct >= 90 ? "#f85149" : pct >= 70 ? "#d29922" : "#3fb950" }} />
+          </div>
+          <span className="muted" style={{ fontSize: 11, display: "block", marginTop: 4 }}>
+            {usedThisMonth.toLocaleString()} / {MONTHLY_TOKEN_CAP.toLocaleString()} tokens ({pct}%)
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Chatbot page ─────────────────────────────────────────────────────────
+
 export function Chatbot() {
+  const accessToken = useAtomValue(accessTokenAtom);
   const queryClient = useQueryClient();
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [tokenCapReached, setTokenCapReached] = useState(false);
 
   const { data: sessions = [], isLoading: sessionsLoading } = useQuery({
     queryKey: ["wa-sessions"],
@@ -306,6 +446,24 @@ export function Chatbot() {
     },
   });
 
+  // WS: listen for token cap reached event
+  useEffect(() => {
+    if (!accessToken) return;
+    let closed = false;
+    const ws = openEventSocket(accessToken, (event) => {
+      if (closed) return;
+      if (event.type === "chat.bot.token_cap_reached") {
+        setTokenCapReached(true);
+        queryClient.invalidateQueries({ queryKey: ["chat-stats"] });
+      }
+    });
+    return () => {
+      closed = true;
+      if (ws.readyState === WebSocket.CONNECTING) ws.onopen = () => ws.close();
+      else ws.close();
+    };
+  }, [accessToken, queryClient]);
+
   const activeSession = sessions.find((s) => s.id === activeSessionId);
 
   return (
@@ -322,8 +480,11 @@ export function Chatbot() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {savedMsg && (
-            <span style={{ fontSize: 12, color: "#3fb950" }}>✓ {savedMsg}</span>
+          {savedMsg && <span style={{ fontSize: 12, color: "#3fb950" }}>✓ {savedMsg}</span>}
+          {activeSessionId && config && (
+            <button className="btn-ghost" style={{ fontSize: 12 }} onClick={() => setShowTestModal(true)}>
+              test bot
+            </button>
           )}
           {sessions.length > 1 && (
             <select
@@ -340,6 +501,8 @@ export function Chatbot() {
           )}
         </div>
       </div>
+
+      <TokenUsageWidget tokenCapReached={tokenCapReached} />
 
       {(sessionsLoading || configLoading) && <p className="muted">loading…</p>}
 
@@ -362,6 +525,10 @@ export function Chatbot() {
 
       {saveMutation.isError && (
         <p className="auth-error">{(saveMutation.error as Error).message}</p>
+      )}
+
+      {showTestModal && activeSessionId && (
+        <TestBotModal waSessionId={activeSessionId} onClose={() => setShowTestModal(false)} />
       )}
     </div>
   );

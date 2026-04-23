@@ -78,6 +78,7 @@ export function Inbox() {
   const threadBodyRef = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState("");
   const [botError, setBotError] = useState<string | null>(null);
+  const [loopDetected, setLoopDetected] = useState<string | null>(null); // conversationId of loop-paused conv
 
   const selectedIdRef = useRef(selectedConversationId);
   selectedIdRef.current = selectedConversationId;
@@ -173,6 +174,11 @@ export function Inbox() {
       if (event.type === "chat.bot.error" && event.conversation_id === selectedIdRef.current) {
         setBotError(event.error as string ?? "bot reply failed");
       }
+
+      if (event.type === "chat.bot.loop_detected") {
+        queryClient.invalidateQueries({ queryKey: ["chat-conversations", event.session_id] });
+        setLoopDetected(event.conversation_id as string);
+      }
     });
     return () => {
       closed = true;
@@ -259,6 +265,13 @@ export function Inbox() {
               <div className="inbox-bot-error">
                 <span>bot error: {botError}</span>
                 <button onClick={() => setBotError(null)}>✕</button>
+              </div>
+            )}
+
+            {loopDetected === selectedConversationId && (
+              <div className="inbox-bot-error" style={{ background: "rgba(210,153,34,0.12)", borderColor: "rgba(210,153,34,0.4)", color: "#d29922" }}>
+                <span>bot auto-paused — too many replies today without resolution. use "take over" to review, then "resume bot" when ready.</span>
+                <button onClick={() => setLoopDetected(null)}>✕</button>
               </div>
             )}
 

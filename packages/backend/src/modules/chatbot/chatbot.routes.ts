@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "@clawster/db";
 import { boss } from "../worker/boss";
-import { CHAT_REPLY_JOB } from "./chatbot.worker";
+import { CHAT_REPLY_JOB, buildBotSystemPrompt } from "./chatbot.worker";
 import { getChatClient, getChatModel, isChatConfigured } from "./llm-client";
 import { listConversations, listMessages, getChatbotConfig, saveChatbotConfig, getChatStats } from "./chatbot.service";
 
@@ -192,5 +192,45 @@ export async function chatbotRoutes(app: FastifyInstance) {
     });
 
     return reply.status(201).send(message);
+  });
+
+  // POST /chat/config/:waSessionId/test — simulate a conversation without sending to WhatsApp
+  app.post("/chat/config/:waSessionId/test", { onRequest: [app.authenticate] }, async (request, reply) => {
+    const { waSessionId } = request.params as { waSessionId: string };
+    const session = await prisma.waSession.findFirst({ where: { id: waSessionId, userId: request.user.sub } });
+    if (!session) return reply.status(404).send({ error: "not_found" });
+
+    const client = getChatClient();
+    if (!client) return reply.status(503).send({ error: "ai_not_configured" });
+
+    const b = request.body as Record<string, unknown>;
+    const incoming = Array.isArray(b.messages) ? b.messages : [];
+    const history = (incoming as Array<Record<string, unknown>>)
+      .slice(-20)
+      .filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+      .map((m) => ({ role: m.role as "user" | "assistant", content: m.content as string }));
+
+    if (history.length === 0) return reply.status(400).send({ error: "messages_required" });
+
+    const config = await prisma.chatbotConfig.findUnique({ where: { waSessionId } });
+    const systemPrompt = buildBotSystemPrompt(config?.knowledgeBase ?? "");
+
+    const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+      { role: "system", content: systemPrompt },
+      ...history,
+    ];
+
+    const response = (config?.maxTokens ?? 0) > 0
+      ? await client.chat.completions.create({ model: getChatModel(), messages, max_tokens: config!.maxTokens, temperature: 0.6, stream: false })
+      : await client.chat.completions.create({ model: getChatModel(), messages, temperature: 0.6, stream: false });
+
+    const rawContent = response.choices[0]?.message?.content;
+    const reply_text = typeof rawContent === "string" ? rawContent.trim() : "";
+
+    return {
+      reply: reply_text || "(no reply generated)",
+      tokensIn: response.usage?.prompt_tokens ?? 0,
+      tokensOut: response.usage?.completion_tokens ?? 0,
+    };
   });
 }

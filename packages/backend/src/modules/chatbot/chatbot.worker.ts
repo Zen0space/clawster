@@ -175,6 +175,12 @@ type ChatBotReplyPayload = {
   attempt?: number;
 };
 
+export function buildBotSystemPrompt(knowledgeBase: string): string {
+  const knowledge = knowledgeBase.trim() ||
+    "(no knowledge base configured yet — tell the user the bot isn't set up and offer a human handover)";
+  return BOT_ROLE_PROMPT + WHATSAPP_FORMAT_RULES + `\n\n---\nKNOWLEDGE BASE:\n${knowledge}`;
+}
+
 export async function enqueueBotReply(params: Omit<ChatBotReplyPayload, "attempt">) {
   if (!isChatConfigured()) {
     log.warn("bot skipped — CHAT_API_KEY / CHAT_BASE_URL not configured");
@@ -249,17 +255,41 @@ async function handleBotReply(payload: ChatBotReplyPayload) {
   const hasMoreAfterBatch = unanswered.length > BATCH_SIZE;
   log.info(`bot job: ${unanswered.length} unanswered msgs, processing up to ${BATCH_SIZE}`);
 
-  // Daily cap check
+  // Shared today boundary used by all daily checks below
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+
+  // Daily reply cap (per-session)
   const todayReplies = await prisma.chatMessage.count({
-    where: {
-      role: "assistant",
-      createdAt: { gte: todayStart },
-      conversation: { waSessionId },
-    },
+    where: { role: "assistant", createdAt: { gte: todayStart }, conversation: { waSessionId } },
   });
   if (todayReplies >= config.dailyReplyCap) {
-    log.warn(`chatbot daily cap reached for session ${waSessionId}`);
+    log.warn(`chatbot daily reply cap reached for session ${waSessionId}`);
+    return;
+  }
+
+  // Monthly token cap — fixed system limit, not user-configurable
+  const MONTHLY_TOKEN_CAP = 1_000_000;
+  const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+  const tokenAgg = await prisma.chatMessage.aggregate({
+    where: { role: "assistant", createdAt: { gte: monthStart }, conversation: { waSession: { userId } } },
+    _sum: { tokensIn: true, tokensOut: true },
+  });
+  const usedThisMonth = (tokenAgg._sum.tokensIn ?? 0) + (tokenAgg._sum.tokensOut ?? 0);
+  if (usedThisMonth >= MONTHLY_TOKEN_CAP) {
+    log.warn(`monthly token cap reached for user ${userId} (${usedThisMonth}/${MONTHLY_TOKEN_CAP})`);
+    waHub.emit(userId, { type: "chat.bot.token_cap_reached", session_id: waSessionId });
+    return;
+  }
+
+  // Loop guard — auto-takeover if bot has sent too many replies to this conversation today
+  const LOOP_DAILY_THRESHOLD = 15;
+  const botRepliesToday = await prisma.chatMessage.count({
+    where: { conversationId, role: "assistant", createdAt: { gte: todayStart } },
+  });
+  if (botRepliesToday >= LOOP_DAILY_THRESHOLD) {
+    await prisma.chatConversation.update({ where: { id: conversationId }, data: { humanTakeover: true } });
+    waHub.emit(userId, { type: "chat.bot.loop_detected", conversation_id: conversationId, session_id: waSessionId });
+    log.warn(`loop guard triggered for conv ${conversationId} (${botRepliesToday} replies today) — auto-paused`);
     return;
   }
 
@@ -322,15 +352,8 @@ async function handleBotReply(payload: ChatBotReplyPayload) {
 
   if (recent.length === 0) return;
 
-  const knowledge = config.knowledgeBase?.trim() ||
-    "(no knowledge base configured yet — tell the user the bot isn't set up and offer a human handover)";
-  const systemContent =
-    BOT_ROLE_PROMPT +
-    WHATSAPP_FORMAT_RULES +
-    `\n\n---\nKNOWLEDGE BASE:\n${knowledge}`;
-
   const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-    { role: "system", content: systemContent },
+    { role: "system", content: buildBotSystemPrompt(config.knowledgeBase ?? "") },
   ];
 
   if (memoryText) {
