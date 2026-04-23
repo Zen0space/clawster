@@ -1,19 +1,26 @@
-name: Release
+name: Dev Release
 
 on:
   push:
-    tags: ["v*"]
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Tag to release (e.g. v1.0.3)"
-        required: true
+    branches: [dev]
 
 permissions:
   contents: write
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      beta_tag: ${{ steps.ver.outputs.beta_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: ver
+        run: |
+          VERSION=$(node -p "require('./packages/desktop/package.json').version")
+          echo "beta_tag=v${VERSION}-beta" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: version
     name: Build ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -24,13 +31,13 @@ jobs:
             os: macos-14
             target: aarch64-apple-darwin
             bundles: dmg,updater
-            artifact: clawster-macos-aarch64
+            artifact: clawster-macos-aarch64-beta
             bundle_ext: dmg
           - name: Windows (x64)
             os: windows-latest
             target: x86_64-pc-windows-msvc
             bundles: nsis
-            artifact: clawster-windows-x86_64
+            artifact: clawster-windows-x86_64-beta
             bundle_ext: exe
 
     steps:
@@ -52,7 +59,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: packages/desktop/src-tauri
-          key: ${{ matrix.target }}
+          key: ${{ matrix.target }}-beta
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -81,20 +88,18 @@ jobs:
             else shasum -a 256 "$@"; fi
           }
           mkdir -p dist
-          # Primary bundle (dmg / exe)
           bundle_dir="packages/desktop/src-tauri/target/${{ matrix.target }}/release/bundle"
-          for f in "$bundle_dir"/${{ matrix.bundles == 'dmg,updater' && 'dmg' || matrix.bundles }}/*.${{ matrix.bundle_ext }}; do
+          for f in "$bundle_dir"/dmg/*.${{ matrix.bundle_ext }} "$bundle_dir"/nsis/*.${{ matrix.bundle_ext }}; do
+            [ -f "$f" ] || continue
             base="${{ matrix.artifact }}.${{ matrix.bundle_ext }}"
             cp "$f" "dist/$base"
             (cd dist && hash_cmd "$base" > "$base.sha256")
           done
-          # Updater artifacts (.app.tar.gz + .sig for macOS, .exe.sig for Windows)
           if [ -d "$bundle_dir/updater" ]; then
             for f in "$bundle_dir/updater"/*.tar.gz "$bundle_dir/updater"/*.tar.gz.sig; do
               [ -f "$f" ] && cp "$f" dist/
             done
           fi
-          # Windows NSIS .sig
           for f in "$bundle_dir/nsis"/*.exe.sig 2>/dev/null; do
             [ -f "$f" ] && cp "$f" dist/
           done
@@ -104,46 +109,38 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: dist/
-          retention-days: 7
+          retention-days: 3
           if-no-files-found: error
 
   release:
-    name: Create Release
-    needs: build
+    name: Publish Pre-release
+    needs: [version, build]
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      BETA_TAG: ${{ needs.version.outputs.beta_tag }}
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true
 
-      - name: List artifacts
-        run: ls -lah artifacts/
-
-      - name: Resolve tag
-        id: tag
-        run: |
-          TAG="${{ github.event.inputs.tag || github.ref_name }}"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+      - name: Delete existing beta release
+        run: gh release delete "$BETA_TAG" --repo ${{ github.repository }} --yes --cleanup-tag 2>/dev/null || true
 
       - name: Generate latest.json for updater
-        id: manifest
         run: |
           set -euo pipefail
-          TAG="${{ steps.tag.outputs.tag }}"
-          VERSION="${TAG#v}"
+          VERSION="${BETA_TAG#v}"
           REPO="https://github.com/${{ github.repository }}"
-          BASE="${REPO}/releases/download/${TAG}"
+          BASE="${REPO}/releases/download/${BETA_TAG}"
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-          # Read signatures
           MAC_SIG=$(cat artifacts/*.app.tar.gz.sig 2>/dev/null | tr -d '\n' || echo "")
           WIN_SIG=$(cat artifacts/*.exe.sig 2>/dev/null | tr -d '\n' || echo "")
-
           cat > artifacts/latest.json <<EOF
           {
             "version": "${VERSION}",
-            "notes": "See full changelog at ${REPO}/releases/tag/${TAG}",
+            "notes": "Development build from dev branch.",
             "pub_date": "${PUB_DATE}",
             "platforms": {
               "darwin-aarch64": {
@@ -151,22 +148,24 @@ jobs:
                 "signature": "${MAC_SIG}"
               },
               "windows-x86_64": {
-                "url": "${BASE}/clawster-windows-x86_64.exe",
+                "url": "${BASE}/clawster-windows-x86_64-beta.exe",
                 "signature": "${WIN_SIG}"
               }
             }
           }
           EOF
-          echo "Generated latest.json:"
-          cat artifacts/latest.json
 
-      - name: Create GitHub Release
+      - name: Create pre-release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: ${{ steps.tag.outputs.tag }}
-          generate_release_notes: true
+          tag_name: ${{ needs.version.outputs.beta_tag }}
+          name: ${{ needs.version.outputs.beta_tag }}
+          prerelease: true
+          generate_release_notes: false
+          target_commitish: ${{ github.sha }}
+          body: |
+            **Development build** from the `dev` branch — not for production use.
+
+            Built from ${{ github.sha }}.
           files: artifacts/*
-          draft: false
-          prerelease: false
           fail_on_unmatched_files: true

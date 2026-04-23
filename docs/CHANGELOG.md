@@ -6,6 +6,26 @@ All notable changes to Clawster are documented here.
 
 ## Releases
 
+## [v1.2.0] — 2026-04-24
+
+### New
+- **Chatbot (beta)** — an AI assistant that automatically replies to inbound WhatsApp messages on your behalf. Set it up from the new **Chatbot** page in the sidebar. Toggle it on per connected number, and it handles replies around the clock while you sleep.
+- **Knowledge base** — teach the bot everything about your business: products, pricing, FAQs, policies, and contact details. The bot answers only what you've written here, and politely redirects anything outside that scope so it never makes things up.
+- **Inbox** — a shared conversation view where every WhatsApp reply lands in one place. Read what contacts are saying, reply manually when you want to step in, and toggle **Take over** on any thread to pause the bot for that contact.
+- **Test bot** — before going live, hit **test bot** in the Chatbot page to chat with your knowledge base directly in the app. Nothing gets sent to WhatsApp.
+- **Monthly token usage** — the Chatbot page shows how many AI tokens you've used this month out of the 1,000,000 monthly limit, with a colour-coded bar.
+
+### Redesigned
+- **Chatbot config** is now its own page in the sidebar (labelled **chatbot · beta**) rather than a button buried inside the WA Sessions page.
+
+### Improved
+- **Bot reply pacing** — the bot waits up to 30 seconds after the last message before replying, so bursts of messages get one combined answer instead of several rapid-fire replies. Send 5 messages and the bot replies once covering all 5.
+- **Bot safety** — if the bot sends 15 or more replies to the same contact in a day without resolution, it pauses itself and shows an amber notice in the Inbox so you can review.
+- **Inbox scrolls to the latest message** automatically when you open a conversation or when a new message arrives, even in long threads.
+- **Stay signed in** — the app now silently refreshes your session in the background, so you no longer get logged out while saving settings mid-session.
+
+---
+
 ## [v1.1.2] — 2026-04-22
 
 ### New
