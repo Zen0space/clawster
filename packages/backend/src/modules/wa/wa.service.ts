@@ -4,7 +4,8 @@ import { prisma } from "@clawster/db";
 import { waRegistrySet, waRegistryGet, waRegistryRemove } from "./wa.registry";
 import { waHub } from "./wa.hub";
 import { useDBAuthState } from "./wa.auth";
-import { silentLogger } from "../../logger";
+import { silentLogger, log } from "../../logger";
+import { enqueueBotReply } from "../chatbot/chatbot.worker";
 
 export async function spawnSession(sessionId: string, userId: string): Promise<void> {
   const { version } = await fetchLatestBaileysVersion();
@@ -21,6 +22,83 @@ export async function spawnSession(sessionId: string, userId: string): Promise<v
   waRegistrySet(sessionId, socket);
 
   socket.ev.on("creds.update", saveCreds);
+
+  socket.ev.on("messages.upsert", async ({ messages: msgs, type }) => {
+    if (type !== "notify") return;
+    for (const msg of msgs) {
+      if (!msg.key.remoteJid || !msg.message) continue;
+      const remoteJid = msg.key.remoteJid;
+      if (remoteJid.endsWith("@g.us") || remoteJid.endsWith("@broadcast")) continue;
+
+      const isOutbound = msg.key.fromMe === true;
+      const waMessageId = msg.key.id ?? null;
+
+      // Skip outbound messages already stored by the Clawster inbox send flow
+      if (isOutbound && waMessageId) {
+        const existing = await prisma.chatMessage.findFirst({ where: { waMessageId } });
+        if (existing) continue;
+      }
+
+      const body =
+        msg.message.conversation ??
+        msg.message.extendedTextMessage?.text ??
+        "[media]";
+
+      try {
+        const conversation = await prisma.chatConversation.upsert({
+          where: { waSessionId_remoteJid: { waSessionId: sessionId, remoteJid } },
+          update: {
+            lastMessageAt: new Date(),
+            // Only update displayName from inbound messages (contact's name, not ours)
+            ...((!isOutbound && msg.pushName) ? { displayName: msg.pushName } : {}),
+          },
+          create: { waSessionId: sessionId, remoteJid, displayName: (!isOutbound ? msg.pushName : null) ?? null },
+        });
+
+        let chatMessage;
+        try {
+          chatMessage = await prisma.chatMessage.create({
+            data: {
+              conversationId: conversation.id,
+              role: isOutbound ? "human" : "user",
+              body,
+              waMessageId,
+            },
+          });
+        } catch (err) {
+          // P2002 = unique constraint violation on wa_message_id.
+          // Baileys redelivered a message we already stored — skip the rest.
+          if (err && typeof err === "object" && "code" in err && (err as { code: string }).code === "P2002") {
+            log.info(`dedup — skipping redelivered message ${waMessageId}`);
+            continue;
+          }
+          throw err;
+        }
+
+        waHub.emit(userId, {
+          type: "chat.message.received",
+          conversation_id: conversation.id,
+          message_id: chatMessage.id,
+          session_id: sessionId,
+          remote_jid: remoteJid,
+        });
+
+        // Trigger bot auto-reply for inbound messages only
+        if (!isOutbound) {
+          log.info(`inbound message received — evaluating bot (${remoteJid})`);
+          enqueueBotReply({
+            conversationId: conversation.id,
+            waSessionId: sessionId,
+            userId,
+            remoteJid,
+          }).catch((err) => log.error("bot enqueue failed", err));
+        }
+      } catch (err) {
+        // don't crash the WA connection on inbox errors
+        log.error("inbox handler error", err);
+      }
+    }
+  });
 
   socket.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
     if (qr) {

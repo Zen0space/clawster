@@ -29,7 +29,6 @@ function QRModal({ qrSrc, linked, onClose }: { qrSrc: string | null; linked: boo
           <span className="auth-brand-name">link new device</span>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
-
         {linked ? (
           <div className="modal-success">
             <span className="success-dot" />
@@ -48,6 +47,8 @@ function QRModal({ qrSrc, linked, onClose }: { qrSrc: string | null; linked: boo
   );
 }
 
+// ── Main Sessions page ─────────────────────────────────────────────────────────
+
 export function Sessions() {
   const [linkingSessionId, setLinkingSessionId] = useState<string | null>(null);
   const [qrSrc, setQrSrc] = useState<string | null>(null);
@@ -62,6 +63,7 @@ export function Sessions() {
     queryFn: () => api.wa.listSessions(),
   });
 
+  // All hooks must be declared before any conditional return
   function closeModal() {
     wsRef.current?.close();
     wsRef.current = null;
@@ -73,12 +75,8 @@ export function Sessions() {
   const createMutation = useMutation({
     mutationFn: () => api.wa.createSession(),
     onSuccess: ({ id }) => {
-      if (!accessToken) {
-        setLinkError("session expired — please log in again");
-        return;
-      }
+      if (!accessToken) { setLinkError("session expired — please log in again"); return; }
       const token = accessToken;
-
       const ws = openEventSocket(token, async (event: WsEvent) => {
         if (event.type === "wa.qr" && event.session_id === id) {
           const src = await QRCode.toDataURL(event.qr as string, { width: 240, margin: 1 });
@@ -91,13 +89,10 @@ export function Sessions() {
           setTimeout(closeModal, 1200);
         }
       });
-
       wsRef.current = ws;
       setLinkingSessionId(id);
     },
-    onError: () => {
-      setLinkError("failed to start session — is the backend running?");
-    },
+    onError: () => setLinkError("failed to start session — is the backend running?"),
   });
 
   const deleteMutation = useMutation({
@@ -122,7 +117,6 @@ export function Sessions() {
       </div>
 
       {linkError && <p className="auth-error">{linkError}</p>}
-
       {isLoading && <p className="muted">loading…</p>}
 
       {!isLoading && sessions.length === 0 && (
@@ -140,26 +134,23 @@ export function Sessions() {
               <StatusBadge status={s.status} />
             </div>
             {s.phoneNumber && <p className="session-phone">+{s.phoneNumber}</p>}
-            <p className="session-date">
-              added {new Date(s.createdAt).toLocaleDateString()}
-            </p>
-            <button
-              className="btn-danger-ghost"
-              onClick={() => deleteMutation.mutate(s.id)}
-              disabled={deleteMutation.isPending}
-            >
-              disconnect
-            </button>
+            <p className="session-date">added {new Date(s.createdAt).toLocaleDateString()}</p>
+            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+              <button
+                className="btn-danger-ghost"
+                style={{ flex: 1 }}
+                onClick={() => deleteMutation.mutate(s.id)}
+                disabled={deleteMutation.isPending}
+              >
+                disconnect
+              </button>
+            </div>
           </div>
         ))}
       </div>
 
       {linkingSessionId && (
-        <QRModal
-          qrSrc={qrSrc}
-          linked={linked}
-          onClose={closeModal}
-        />
+        <QRModal qrSrc={qrSrc} linked={linked} onClose={closeModal} />
       )}
     </div>
   );

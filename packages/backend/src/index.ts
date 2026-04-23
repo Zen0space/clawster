@@ -10,6 +10,7 @@ import { waRoutes } from "./modules/wa/wa.routes";
 import { contactsRoutes } from "./modules/contacts/contacts.routes";
 import { mediaRoutes } from "./modules/media/media.routes";
 import { campaignRoutes } from "./modules/campaigns/campaigns.routes";
+import { chatbotRoutes } from "./modules/chatbot/chatbot.routes";
 import { startWorker } from "./modules/worker/sender";
 import { reconnectAll } from "./modules/wa/wa.service";
 import { registry, httpRequestsTotal } from "./metrics";
@@ -83,6 +84,7 @@ app.register(waRoutes, { prefix: "/api/v1/wa" });
 app.register(contactsRoutes, { prefix: "/api/v1" });
 app.register(mediaRoutes, { prefix: "/api/v1" });
 app.register(campaignRoutes, { prefix: "/api/v1" });
+app.register(chatbotRoutes, { prefix: "/api/v1" });
 
 // ── Healthcheck ───────────────────────────────────────────────────────────────
 app.get("/healthz", async () => ({ ok: true }));

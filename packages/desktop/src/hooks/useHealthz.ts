@@ -6,7 +6,7 @@ export function useHealthz() {
     queryKey: ["healthz"],
     queryFn: async () => {
       const result = await api.ping();
-      console.log("[desktop] backend connected:", result);
+      console.info("[desktop] backend connected:", result);
       return result;
     },
     retry: false,

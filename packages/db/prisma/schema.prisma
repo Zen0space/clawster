@@ -52,8 +52,10 @@ model WaSession {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  campaigns Campaign[]
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaigns         Campaign[]
+  chatConversations ChatConversation[]
+  chatbotConfig     ChatbotConfig?
 
   @@index([userId])
   @@map("wa_sessions")
@@ -153,6 +155,63 @@ model CampaignMessage {
   @@index([campaignId])
   @@index([status, scheduledAt])
   @@map("campaign_messages")
+}
+
+model ChatbotConfig {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  waSessionId      String   @unique @map("wa_session_id") @db.Uuid
+  enabled          Boolean  @default(false)
+  knowledgeBase    String   @default("") @map("knowledge_base") @db.Text
+  maxTokens        Int      @default(4096) @map("max_tokens")
+  dailyReplyCap    Int      @default(200) @map("daily_reply_cap")
+  replyMinDelaySec Int      @default(15) @map("reply_min_delay_sec")
+  replyMaxDelaySec Int      @default(45) @map("reply_max_delay_sec")
+  priorityJids          Json      @default("[]") @map("priority_jids")
+  quietStart            Int?      @map("quiet_start")
+  quietEnd              Int?      @map("quiet_end")
+  knowledgeBaseUpdatedAt DateTime? @map("knowledge_base_updated_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  waSession WaSession @relation(fields: [waSessionId], references: [id], onDelete: Cascade)
+
+  @@map("chatbot_configs")
+}
+
+model ChatConversation {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  waSessionId   String   @map("wa_session_id") @db.Uuid
+  remoteJid           String    @map("remote_jid")
+  displayName         String?   @map("display_name")
+  humanTakeover       Boolean   @default(false) @map("human_takeover")
+  lastMessageAt       DateTime  @default(now()) @map("last_message_at")
+  lastBotReplyAt      DateTime? @map("last_bot_reply_at")
+  memory              String?   @db.Text
+  memoryMessageCount  Int       @default(0) @map("memory_message_count")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  waSession WaSession     @relation(fields: [waSessionId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
+
+  @@unique([waSessionId, remoteJid])
+  @@index([waSessionId, lastMessageAt(sort: Desc)])
+  @@map("chat_conversations")
+}
+
+model ChatMessage {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId String   @map("conversation_id") @db.Uuid
+  role           String   // user | assistant | human
+  body           String   @db.Text
+  waMessageId    String?  @map("wa_message_id")
+  tokensIn       Int?     @map("tokens_in")
+  tokensOut      Int?     @map("tokens_out")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("chat_messages")
 }
 
 model AuditLog {

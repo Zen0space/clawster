@@ -1,21 +1,61 @@
 const BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
+async function buildHeaders(token: string | null, init?: HeadersInit, body?: BodyInit | null) {
+  const headers = new Headers(init);
+  if (body != null && !(body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  return headers;
+}
+
 async function apiFetch<T>(
   path: string,
   options: RequestInit & { skipAuth?: boolean } = {}
 ): Promise<T> {
   const { skipAuth, ...rest } = options;
-  const headers = new Headers(rest.headers);
-  if (rest.body != null && !(rest.body instanceof FormData) && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
+
+  if (skipAuth) {
+    const headers = await buildHeaders(null, rest.headers, rest.body);
+    const res = await fetch(`${BASE}${path}`, { ...rest, headers });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw Object.assign(new Error(body.error ?? String(res.status)), { status: res.status });
+    }
+    return res.json() as Promise<T>;
   }
 
-  if (!skipAuth) {
-    const token = localStorage.getItem("access_token");
-    if (token) headers.set("Authorization", `Bearer ${token}`);
-  }
-
+  // Authenticated request — try once, then refresh-and-retry on 401
+  const token = localStorage.getItem("access_token");
+  const headers = await buildHeaders(token, rest.headers, rest.body);
   const res = await fetch(`${BASE}${path}`, { ...rest, headers });
+
+  if (res.status === 401) {
+    const refreshToken = localStorage.getItem("refresh_token");
+    if (refreshToken) {
+      try {
+        const refreshRes = await fetch(`${BASE}/api/v1/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+        if (refreshRes.ok) {
+          const { access_token, refresh_token } = await refreshRes.json() as { access_token: string; refresh_token: string };
+          localStorage.setItem("access_token", access_token);
+          localStorage.setItem("refresh_token", refresh_token);
+          const retryHeaders = await buildHeaders(access_token, rest.headers, rest.body);
+          const retry = await fetch(`${BASE}${path}`, { ...rest, headers: retryHeaders });
+          if (!retry.ok) {
+            const body = await retry.json().catch(() => ({}));
+            throw Object.assign(new Error(body.error ?? String(retry.status)), { status: retry.status });
+          }
+          return retry.json() as Promise<T>;
+        }
+      } catch {
+        // Refresh failed — fall through to throw the 401
+      }
+    }
+  }
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -55,6 +95,62 @@ export type CreateCampaignInput = {
   mediaAssetId?: string;
   minDelaySec?: number; maxDelaySec?: number; dailyCap?: number;
   quietStart?: number | null; quietEnd?: number | null; typingSim?: boolean;
+};
+
+export type ChatbotConfig = {
+  waSessionId: string;
+  enabled: boolean;
+  knowledgeBase: string;
+  maxTokens: number;
+  dailyReplyCap: number;
+  replyMinDelaySec: number;
+  replyMaxDelaySec: number;
+  priorityJids: string[];
+  quietStart: number | null;
+  quietEnd: number | null;
+};
+
+export type ChatHealthCheck = {
+  ok: boolean;
+  latencyMs?: number;
+  error?: string;
+  checkedAt: string;
+};
+
+export type ChatHealth = {
+  configured: boolean;
+  baseUrl?: string;
+  model?: string;
+  lastCheck: ChatHealthCheck | null;
+};
+
+export type ChatInboxMessage = {
+  id: string;
+  conversationId: string;
+  role: "user" | "assistant" | "human";
+  body: string;
+  waMessageId: string | null;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  createdAt: string;
+};
+
+export type ChatConversation = {
+  id: string;
+  waSessionId: string;
+  remoteJid: string;
+  displayName: string | null;
+  humanTakeover: boolean;
+  lastMessageAt: string;
+  createdAt: string;
+  messages: ChatInboxMessage[];
+};
+
+export type ChatStats = {
+  todayReplies: number;
+  todayTokens: number;
+  monthReplies: number;
+  monthTokens: number;
 };
 
 export type DashboardStats = {
@@ -174,6 +270,51 @@ export const api = {
       apiFetch<{ id: string; mimeType: string; byteSize: number; sha256: string; createdAt: string }>(
         `/api/v1/media/${id}`
       ),
+  },
+
+  chat: {
+    listConversations: (waSessionId: string, page = 1, limit = 20) =>
+      apiFetch<{ items: ChatConversation[]; total: number; page: number; limit: number }>(
+        `/api/v1/chat/conversations?waSessionId=${encodeURIComponent(waSessionId)}&page=${page}&limit=${limit}`
+      ),
+
+    listMessages: (conversationId: string, page = 1, limit = 50) =>
+      apiFetch<{ items: ChatInboxMessage[]; total: number; page: number; limit: number }>(
+        `/api/v1/chat/conversations/${conversationId}/messages?page=${page}&limit=${limit}`
+      ),
+
+    sendMessage: (conversationId: string, content: string) =>
+      apiFetch<ChatInboxMessage>(`/api/v1/chat/conversations/${conversationId}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ content }),
+      }),
+
+    health: () => apiFetch<ChatHealth>("/api/v1/chat/health"),
+
+    healthCheck: () => apiFetch<ChatHealthCheck>("/api/v1/chat/health/check", { method: "POST" }),
+
+    stats: () => apiFetch<ChatStats>("/api/v1/chat/stats"),
+
+    setTakeover: (conversationId: string, humanTakeover: boolean) =>
+      apiFetch<ChatConversation>(`/api/v1/chat/conversations/${conversationId}/takeover`, {
+        method: "PATCH",
+        body: JSON.stringify({ humanTakeover }),
+      }),
+
+    getConfig: (waSessionId: string) =>
+      apiFetch<ChatbotConfig>(`/api/v1/chat/config/${waSessionId}`),
+
+    saveConfig: (waSessionId: string, data: Omit<ChatbotConfig, "waSessionId">) =>
+      apiFetch<ChatbotConfig>(`/api/v1/chat/config/${waSessionId}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+
+    testBot: (waSessionId: string, messages: Array<{ role: "user" | "assistant"; content: string }>) =>
+      apiFetch<{ reply: string; tokensIn: number; tokensOut: number }>(`/api/v1/chat/config/${waSessionId}/test`, {
+        method: "POST",
+        body: JSON.stringify({ messages }),
+      }),
   },
 
   campaigns: {

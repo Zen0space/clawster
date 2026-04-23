@@ -1,12 +1,14 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useAuth } from "./context/AuthContext";
-import { userAtom, authLoadingAtom, appPageAtom, authPageAtom, type AppPage } from "./atoms";
+import { userAtom, authLoadingAtom, appPageAtom, authPageAtom, inboxUnreadAtom, type AppPage } from "./atoms";
 import { Login } from "./pages/Login";
 import { Signup } from "./pages/Signup";
 import { Dashboard } from "./pages/Dashboard";
 import { Sessions } from "./pages/Sessions";
 import { Contacts } from "./pages/Contacts";
 import { Campaigns } from "./pages/Campaigns";
+import { Inbox } from "./pages/Inbox";
+import { Chatbot } from "./pages/Chatbot";
 import { Settings } from "./pages/Settings";
 import { Changelog } from "./pages/Changelog";
 import pkg from "../package.json";
@@ -16,11 +18,14 @@ const NAV: { id: AppPage; label: string }[] = [
   { id: "sessions", label: "wa sessions" },
   { id: "contacts", label: "contacts" },
   { id: "campaigns", label: "campaigns" },
+  { id: "inbox", label: "inbox" },
+  { id: "chatbot", label: "chatbot" },
 ];
 
 function Layout({ children }: { children: React.ReactNode }) {
   const user = useAtomValue(userAtom);
   const [appPage, setAppPage] = useAtom(appPageAtom);
+  const inboxUnread = useAtomValue(inboxUnreadAtom);
   const { logout } = useAuth();
 
   return (
@@ -38,6 +43,12 @@ function Layout({ children }: { children: React.ReactNode }) {
               onClick={() => setAppPage(item.id)}
             >
               {item.label}
+              {item.id === "inbox" && inboxUnread > 0 && (
+                <span className="inbox-unread-badge">{inboxUnread}</span>
+              )}
+              {item.id === "chatbot" && (
+                <span className="nav-beta-badge">beta</span>
+              )}
             </button>
           ))}
         </nav>
@@ -91,6 +102,8 @@ export function App() {
       {appPage === "sessions" && <Sessions />}
       {appPage === "contacts" && <Contacts />}
       {appPage === "campaigns" && <Campaigns />}
+      {appPage === "inbox" && <Inbox />}
+      {appPage === "chatbot" && <Chatbot />}
       {appPage === "settings" && <Settings />}
       {appPage === "changelog" && <Changelog />}
     </Layout>
