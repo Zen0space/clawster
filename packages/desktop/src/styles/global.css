@@ -1947,3 +1947,17 @@ html, body, #root {
   margin-left: 6px;
   vertical-align: middle;
 }
+
+.nav-beta-badge {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(210, 153, 34, 0.15);
+  color: #d29922;
+  border: 1px solid rgba(210, 153, 34, 0.35);
+  vertical-align: middle;
+  margin-left: 5px;
+}

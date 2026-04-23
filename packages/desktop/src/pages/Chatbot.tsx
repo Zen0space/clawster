@@ -470,7 +470,7 @@ export function Chatbot() {
     <div className="page-content">
       <div className="page-header">
         <div>
-          <h1 className="page-title">chatbot</h1>
+          <h1 className="page-title">chatbot <span className="nav-beta-badge">beta</span></h1>
           {activeSession && (
             <p className="page-subtitle">
               {activeSession.displayName ?? "unnamed device"}

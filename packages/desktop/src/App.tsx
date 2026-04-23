@@ -46,6 +46,9 @@ function Layout({ children }: { children: React.ReactNode }) {
               {item.id === "inbox" && inboxUnread > 0 && (
                 <span className="inbox-unread-badge">{inboxUnread}</span>
               )}
+              {item.id === "chatbot" && (
+                <span className="nav-beta-badge">beta</span>
+              )}
             </button>
           ))}
         </nav>
