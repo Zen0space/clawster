@@ -1,0 +1,135 @@
+name: Dev Release
+
+on:
+  push:
+    branches: [dev]
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      beta_tag: ${{ steps.ver.outputs.beta_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: ver
+        run: |
+          VERSION=$(node -p "require('./packages/desktop/package.json').version")
+          echo "beta_tag=v${VERSION}-beta" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: version
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS (Apple Silicon)
+            os: macos-14
+            target: aarch64-apple-darwin
+            bundles: dmg
+            artifact: clawster-macos-aarch64-beta
+            bundle_ext: dmg
+          - name: Windows (x64)
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+            artifact: clawster-windows-x86_64-beta
+            bundle_ext: exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/desktop/src-tauri
+          key: ${{ matrix.target }}-beta
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @clawster/db generate
+
+      - name: Build db package
+        run: pnpm --filter @clawster/db build
+
+      - name: Build desktop app
+        working-directory: packages/desktop
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+        run: pnpm tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+
+      - name: Collect artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          hash_cmd() {
+            if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"
+            else shasum -a 256 "$@"; fi
+          }
+          mkdir -p dist
+          bundle_dir="packages/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.bundles }}"
+          for f in "$bundle_dir"/*.${{ matrix.bundle_ext }}; do
+            base="${{ matrix.artifact }}.${{ matrix.bundle_ext }}"
+            cp "$f" "dist/$base"
+            (cd dist && hash_cmd "$base" > "$base.sha256")
+          done
+          ls -lah dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/
+          retention-days: 3
+          if-no-files-found: error
+
+  release:
+    name: Publish Pre-release
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      BETA_TAG: ${{ needs.version.outputs.beta_tag }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Delete existing beta release
+        run: gh release delete "$BETA_TAG" --repo ${{ github.repository }} --yes --cleanup-tag 2>/dev/null || true
+
+      - name: Create pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version.outputs.beta_tag }}
+          name: ${{ needs.version.outputs.beta_tag }}
+          prerelease: true
+          generate_release_notes: false
+          target_commitish: ${{ github.sha }}
+          body: |
+            **Development build** from the `dev` branch — not for production use.
+
+            Built from ${{ github.sha }}.
+          files: artifacts/*
+          fail_on_unmatched_files: true
