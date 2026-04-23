@@ -6,10 +6,10 @@ All notable changes to Clawster are documented here.
 
 ## Releases
 
-## [v1.2.5] — 2026-04-24
+## [v1.2.6] — 2026-04-24
 
 ### Fixed
-- **In-app updates** — the previous release shipped without the signature files needed for the in-app updater to verify downloads, so clicking **install update** would fail. This release produces signed update bundles correctly. Once you install v1.2.5 manually, every future update will arrive in-app.
+- **In-app updates** — fixed the build pipeline so update bundles are now signed correctly. Once you install v1.2.6 manually, every future update will arrive in-app via the **install update** button on the Changelog page.
 
 ---
 
