@@ -69,7 +69,7 @@ jobs:
           - name: macOS (Apple Silicon)
             os: macos-14
             target: aarch64-apple-darwin
-            bundles: dmg,updater
+            bundles: dmg
             artifact: clawster-macos-aarch64
             bundle_ext: dmg
           - name: Windows (x64)
@@ -135,13 +135,13 @@ jobs:
             cp "$f" "dist/$base"
             (cd dist && hash_cmd "$base" > "$base.sha256")
           done
-          # macOS updater bundle (.app.tar.gz + .sig)
-          if [ -d "$bundle_dir/updater" ]; then
-            for f in "$bundle_dir/updater"/*.tar.gz "$bundle_dir/updater"/*.tar.gz.sig; do
-              [ -f "$f" ] && cp "$f" dist/
-            done
-          fi
-          # Windows NSIS signature
+          # Tauri v2 puts updater artifacts next to the regular bundle
+          # when createUpdaterArtifacts is enabled in tauri.conf.json.
+          # macOS: .app.tar.gz + .app.tar.gz.sig live in bundle/macos/
+          for f in "$bundle_dir/macos"/*.tar.gz "$bundle_dir/macos"/*.tar.gz.sig; do
+            [ -f "$f" ] && cp "$f" dist/
+          done
+          # Windows NSIS: .exe.sig lives in bundle/nsis/ next to the installer
           for f in "$bundle_dir/nsis"/*.exe.sig; do
             [ -f "$f" ] && cp "$f" dist/
           done
