@@ -6,6 +6,9 @@
   "permissions": [
     "core:default",
     "store:default",
-    "fs:allow-download-write"
+    "fs:allow-download-write",
+    "updater:default",
+    "core:app:default",
+    "process:default"
   ]
 }

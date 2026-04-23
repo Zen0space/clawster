@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { useSetAtom } from "jotai";
+import { check, type Update } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 import CHANGELOG_MD from "../../../../docs/CHANGELOG.md?raw";
 import { appPageAtom } from "../atoms";
 import pkg from "../../package.json";
 
-const RELEASES_URL = "https://github.com/Zen0space/clawster/releases";
-const RELEASES_API = "https://api.github.com/repos/Zen0space/clawster/releases/latest";
-
-type UpdateState = "idle" | "checking" | "up-to-date" | "available" | "error";
+type UpdateState = "idle" | "checking" | "up-to-date" | "available" | "downloading" | "ready" | "error";
 
 type Block =
   | { kind: "h1"; text: string }
@@ -59,19 +58,42 @@ export function Changelog() {
   const blocks = parse(CHANGELOG_MD);
 
   const [updateState, setUpdateState] = useState<UpdateState>("idle");
-  const [latestVersion, setLatestVersion] = useState<string | null>(null);
+  const [pendingUpdate, setPendingUpdate] = useState<Update | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState(0);
 
   async function checkForUpdate() {
     setUpdateState("checking");
     try {
-      const res = await fetch(RELEASES_API, {
-        headers: { Accept: "application/vnd.github+json" },
+      const update = await check();
+      if (update) {
+        setPendingUpdate(update);
+        setUpdateState("available");
+      } else {
+        setUpdateState("up-to-date");
+      }
+    } catch {
+      setUpdateState("error");
+    }
+  }
+
+  async function installUpdate() {
+    if (!pendingUpdate) return;
+    setUpdateState("downloading");
+    setDownloadProgress(0);
+    try {
+      let downloaded = 0;
+      let total = 0;
+      await pendingUpdate.downloadAndInstall((event) => {
+        if (event.event === "Started") {
+          total = event.data.contentLength ?? 0;
+        } else if (event.event === "Progress") {
+          downloaded += event.data.chunkLength;
+          if (total > 0) setDownloadProgress(Math.round((downloaded / total) * 100));
+        } else if (event.event === "Finished") {
+          setDownloadProgress(100);
+        }
       });
-      if (!res.ok) throw new Error("fetch failed");
-      const data = await res.json() as { tag_name: string };
-      const latest = data.tag_name.replace(/^v/, "");
-      setLatestVersion(data.tag_name);
-      setUpdateState(latest === pkg.version ? "up-to-date" : "available");
+      setUpdateState("ready");
     } catch {
       setUpdateState("error");
     }
@@ -98,15 +120,19 @@ export function Changelog() {
             <span className="changelog-update-badge changelog-update-ok">✓ up to date</span>
           )}
           {updateState === "available" && (
-            <a
-              className="changelog-update-badge changelog-update-new"
-              href={RELEASES_URL}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(e) => { e.preventDefault(); window.open(RELEASES_URL, "_blank"); }}
-            >
-              ↑ {latestVersion} available
-            </a>
+            <button className="changelog-update-badge changelog-update-new" onClick={installUpdate}>
+              ↑ {pendingUpdate?.version} — install update
+            </button>
+          )}
+          {updateState === "downloading" && (
+            <span className="muted" style={{ fontSize: 12 }}>
+              installing… {downloadProgress > 0 ? `${downloadProgress}%` : ""}
+            </span>
+          )}
+          {updateState === "ready" && (
+            <button className="changelog-update-badge changelog-update-new" onClick={() => relaunch()}>
+              restart to apply update
+            </button>
           )}
           {updateState === "error" && (
             <button className="changelog-update-badge changelog-update-err" onClick={checkForUpdate}>

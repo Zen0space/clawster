@@ -30,7 +30,7 @@ jobs:
           - name: macOS (Apple Silicon)
             os: macos-14
             target: aarch64-apple-darwin
-            bundles: dmg
+            bundles: dmg,updater
             artifact: clawster-macos-aarch64-beta
             bundle_ext: dmg
           - name: Windows (x64)
@@ -88,11 +88,20 @@ jobs:
             else shasum -a 256 "$@"; fi
           }
           mkdir -p dist
-          bundle_dir="packages/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.bundles }}"
-          for f in "$bundle_dir"/*.${{ matrix.bundle_ext }}; do
+          bundle_dir="packages/desktop/src-tauri/target/${{ matrix.target }}/release/bundle"
+          for f in "$bundle_dir"/dmg/*.${{ matrix.bundle_ext }} "$bundle_dir"/nsis/*.${{ matrix.bundle_ext }}; do
+            [ -f "$f" ] || continue
             base="${{ matrix.artifact }}.${{ matrix.bundle_ext }}"
             cp "$f" "dist/$base"
             (cd dist && hash_cmd "$base" > "$base.sha256")
+          done
+          if [ -d "$bundle_dir/updater" ]; then
+            for f in "$bundle_dir/updater"/*.tar.gz "$bundle_dir/updater"/*.tar.gz.sig; do
+              [ -f "$f" ] && cp "$f" dist/
+            done
+          fi
+          for f in "$bundle_dir/nsis"/*.exe.sig 2>/dev/null; do
+            [ -f "$f" ] && cp "$f" dist/
           done
           ls -lah dist/
 
@@ -118,6 +127,33 @@ jobs:
 
       - name: Delete existing beta release
         run: gh release delete "$BETA_TAG" --repo ${{ github.repository }} --yes --cleanup-tag 2>/dev/null || true
+
+      - name: Generate latest.json for updater
+        run: |
+          set -euo pipefail
+          VERSION="${BETA_TAG#v}"
+          REPO="https://github.com/${{ github.repository }}"
+          BASE="${REPO}/releases/download/${BETA_TAG}"
+          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          MAC_SIG=$(cat artifacts/*.app.tar.gz.sig 2>/dev/null | tr -d '\n' || echo "")
+          WIN_SIG=$(cat artifacts/*.exe.sig 2>/dev/null | tr -d '\n' || echo "")
+          cat > artifacts/latest.json <<EOF
+          {
+            "version": "${VERSION}",
+            "notes": "Development build from dev branch.",
+            "pub_date": "${PUB_DATE}",
+            "platforms": {
+              "darwin-aarch64": {
+                "url": "${BASE}/$(ls artifacts/*.app.tar.gz | xargs basename)",
+                "signature": "${MAC_SIG}"
+              },
+              "windows-x86_64": {
+                "url": "${BASE}/clawster-windows-x86_64-beta.exe",
+                "signature": "${WIN_SIG}"
+              }
+            }
+          }
+          EOF
 
       - name: Create pre-release
         uses: softprops/action-gh-release@v2

@@ -23,7 +23,7 @@ jobs:
           - name: macOS (Apple Silicon)
             os: macos-14
             target: aarch64-apple-darwin
-            bundles: dmg
+            bundles: dmg,updater
             artifact: clawster-macos-aarch64
             bundle_ext: dmg
           - name: Windows (x64)
@@ -81,11 +81,22 @@ jobs:
             else shasum -a 256 "$@"; fi
           }
           mkdir -p dist
-          bundle_dir="packages/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.bundles }}"
-          for f in "$bundle_dir"/*.${{ matrix.bundle_ext }}; do
+          # Primary bundle (dmg / exe)
+          bundle_dir="packages/desktop/src-tauri/target/${{ matrix.target }}/release/bundle"
+          for f in "$bundle_dir"/${{ matrix.bundles == 'dmg,updater' && 'dmg' || matrix.bundles }}/*.${{ matrix.bundle_ext }}; do
             base="${{ matrix.artifact }}.${{ matrix.bundle_ext }}"
             cp "$f" "dist/$base"
             (cd dist && hash_cmd "$base" > "$base.sha256")
+          done
+          # Updater artifacts (.app.tar.gz + .sig for macOS, .exe.sig for Windows)
+          if [ -d "$bundle_dir/updater" ]; then
+            for f in "$bundle_dir/updater"/*.tar.gz "$bundle_dir/updater"/*.tar.gz.sig; do
+              [ -f "$f" ] && cp "$f" dist/
+            done
+          fi
+          # Windows NSIS .sig
+          for f in "$bundle_dir/nsis"/*.exe.sig 2>/dev/null; do
+            [ -f "$f" ] && cp "$f" dist/
           done
           ls -lah dist/
 
@@ -114,6 +125,40 @@ jobs:
         run: |
           TAG="${{ github.event.inputs.tag || github.ref_name }}"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate latest.json for updater
+        id: manifest
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.tag.outputs.tag }}"
+          VERSION="${TAG#v}"
+          REPO="https://github.com/${{ github.repository }}"
+          BASE="${REPO}/releases/download/${TAG}"
+          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          # Read signatures
+          MAC_SIG=$(cat artifacts/*.app.tar.gz.sig 2>/dev/null | tr -d '\n' || echo "")
+          WIN_SIG=$(cat artifacts/*.exe.sig 2>/dev/null | tr -d '\n' || echo "")
+
+          cat > artifacts/latest.json <<EOF
+          {
+            "version": "${VERSION}",
+            "notes": "See full changelog at ${REPO}/releases/tag/${TAG}",
+            "pub_date": "${PUB_DATE}",
+            "platforms": {
+              "darwin-aarch64": {
+                "url": "${BASE}/$(ls artifacts/*.app.tar.gz | xargs basename)",
+                "signature": "${MAC_SIG}"
+              },
+              "windows-x86_64": {
+                "url": "${BASE}/clawster-windows-x86_64.exe",
+                "signature": "${WIN_SIG}"
+              }
+            }
+          }
+          EOF
+          echo "Generated latest.json:"
+          cat artifacts/latest.json
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
