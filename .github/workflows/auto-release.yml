@@ -1,0 +1,120 @@
+name: Auto Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  auto-release:
+    name: Auto tag release
+    if: >
+      github.event.pull_request.merged == true &&
+      !contains(github.event.pull_request.title, '[skip release]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Read version from package.json
+        id: version
+        run: |
+          CURRENT=$(jq -r '.version' packages/desktop/package.json)
+          if [ -z "$CURRENT" ] || [ "$CURRENT" = "null" ]; then
+            echo "Could not read version from packages/desktop/package.json"
+            exit 1
+          fi
+          echo "current=${CURRENT}" >> "$GITHUB_OUTPUT"
+
+      - name: Check if tag already exists
+        id: check_tag
+        run: |
+          CURRENT="${{ steps.version.outputs.current }}"
+          if git tag -l "v${CURRENT}" | grep -q .; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate version is newer than latest tag
+        if: steps.check_tag.outputs.exists == 'false'
+        id: validate
+        run: |
+          CURRENT="${{ steps.version.outputs.current }}"
+          LATEST=$(git tag -l 'v*' | grep -v '\-beta' | sed 's/^v//' | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)
+
+          if [ -z "$LATEST" ]; then
+            echo "No existing tags found. Treating ${CURRENT} as first release."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          IFS='.' read -r C_MAJOR C_MINOR C_PATCH <<< "$CURRENT"
+          IFS='.' read -r L_MAJOR L_MINOR L_PATCH <<< "$LATEST"
+
+          NEWER=false
+          if [ "$C_MAJOR" -gt "$L_MAJOR" ]; then
+            NEWER=true
+          elif [ "$C_MAJOR" -eq "$L_MAJOR" ] && [ "$C_MINOR" -gt "$L_MINOR" ]; then
+            NEWER=true
+          elif [ "$C_MAJOR" -eq "$L_MAJOR" ] && [ "$C_MINOR" -eq "$L_MINOR" ] && [ "$C_PATCH" -gt "$L_PATCH" ]; then
+            NEWER=true
+          fi
+
+          if [ "$NEWER" = "false" ]; then
+            echo "Version ${CURRENT} is not newer than latest tag v${LATEST}. Skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Tag release
+        if: steps.check_tag.outputs.exists == 'false' && steps.validate.outputs.skip != 'true'
+        id: tag
+        run: |
+          CURRENT="${{ steps.version.outputs.current }}"
+          git tag "v${CURRENT}"
+          git push origin "v${CURRENT}"
+          echo "tagged=true" >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        if: always()
+        run: |
+          CURRENT="${{ steps.version.outputs.current }}"
+          TAGGED="${{ steps.tag.outputs.tagged }}"
+          EXISTS="${{ steps.check_tag.outputs.exists }}"
+          SKIP="${{ steps.validate.outputs.skip }}"
+
+          if [ "$TAGGED" = "true" ]; then
+            {
+              echo "### Auto Release: v${CURRENT}"
+              echo ""
+              echo "- **Tag**: \`v${CURRENT}\`"
+              echo "- Release workflow will now build macOS + Windows installers"
+            } >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$EXISTS" = "true" ]; then
+            {
+              echo "### Release skipped"
+              echo "Tag \`v${CURRENT}\` already exists."
+            } >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$SKIP" = "true" ]; then
+            {
+              echo "### Release skipped"
+              echo "Version \`${CURRENT}\` is not newer than the latest tag. Bump the version in \`packages/desktop/package.json\` before merging."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "### No release"
+              echo "PR title contains \`[skip release]\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
