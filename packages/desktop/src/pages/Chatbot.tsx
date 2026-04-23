@@ -38,7 +38,7 @@ function ChatbotConfigForm({
   saving: boolean;
 }) {
   const [enabled, setEnabled] = useState(initial.enabled);
-  const [systemPrompt, setSystemPrompt] = useState(initial.systemPrompt);
+  const [knowledgeBase, setKnowledgeBase] = useState(initial.knowledgeBase);
   const [maxTokens, setMaxTokens] = useState(initial.maxTokens);
   const [dailyReplyCap, setDailyReplyCap] = useState(initial.dailyReplyCap);
   const [replyMinDelaySec, setReplyMinDelaySec] = useState(initial.replyMinDelaySec);
@@ -231,19 +231,23 @@ function ChatbotConfigForm({
         )}
       </div>
 
-      {/* ── system prompt ── */}
+      {/* ── knowledge base ── */}
       <div className="chatbot-prompt-section">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-          <h2 className="section-title" style={{ margin: 0 }}>system prompt</h2>
-          <span className="muted" style={{ fontSize: 11 }}>{systemPrompt.length} / 8000</span>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+          <h2 className="section-title" style={{ margin: 0 }}>knowledge base</h2>
+          <span className="muted" style={{ fontSize: 11 }}>{knowledgeBase.length} / 8000</span>
         </div>
+        <p className="muted" style={{ fontSize: 11, marginBottom: 8 }}>
+          everything the bot should know — company info, products, prices, FAQs, policies, contact details.
+          the bot only answers questions covered here; everything else gets a polite redirect.
+        </p>
         <textarea
           className="template-textarea"
-          rows={8}
+          rows={14}
           maxLength={8000}
-          placeholder={"You are a friendly sales assistant for [Company Name], replying to WhatsApp messages.\n\nReply in casual Malaysian style — mix simple English and Malay naturally (lah, boleh, okay, tak pe). Keep replies to 1-2 short sentences, like real chat.\n\n=== PRODUCT INFO ===\nProduct: ...\nPrice: ...\n\nIf you don't know something, say so and offer to connect with a human."}
-          value={systemPrompt}
-          onChange={(e) => setSystemPrompt(e.target.value)}
+          placeholder={"=== ABOUT US ===\nCompany: [Your Company Sdn Bhd]\nEstablished [year], based in [city]\nWhat we do: [one-line mission]\n\n=== PRODUCTS / SERVICES ===\n[Product A] — RM[price]/month\n- Feature 1\n- Feature 2\n\n=== FAQ ===\nQ: Ada free trial tak?\nA: Ya, 7 hari free trial, tak perlu credit card.\n\nQ: Boleh refund?\nA: Ya, dalam 14 hari.\n\n=== POLICIES ===\nSupport hours: Isnin–Jumaat, 9am–6pm (MYT)\nRefund window: 14 hari\n\n=== CONTACT ===\nEmail: hello@example.com\nPhone: +60123456789"}
+          value={knowledgeBase}
+          onChange={(e) => setKnowledgeBase(e.target.value)}
         />
       </div>
 
@@ -252,7 +256,7 @@ function ChatbotConfigForm({
         style={{ alignSelf: "flex-start" }}
         disabled={saving}
         onClick={() => onSave({
-          enabled, systemPrompt, maxTokens, dailyReplyCap,
+          enabled, knowledgeBase, maxTokens, dailyReplyCap,
           replyMinDelaySec, replyMaxDelaySec,
           priorityJids: parsePriorityJids(),
           quietStart, quietEnd,

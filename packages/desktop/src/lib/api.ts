@@ -100,7 +100,7 @@ export type CreateCampaignInput = {
 export type ChatbotConfig = {
   waSessionId: string;
   enabled: boolean;
-  systemPrompt: string;
+  knowledgeBase: string;
   maxTokens: number;
   dailyReplyCap: number;
   replyMinDelaySec: number;

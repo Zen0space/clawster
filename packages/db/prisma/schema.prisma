@@ -161,7 +161,7 @@ model ChatbotConfig {
   id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   waSessionId      String   @unique @map("wa_session_id") @db.Uuid
   enabled          Boolean  @default(false)
-  systemPrompt     String   @default("") @map("system_prompt") @db.Text
+  knowledgeBase    String   @default("") @map("knowledge_base") @db.Text
   maxTokens        Int      @default(4096) @map("max_tokens")
   dailyReplyCap    Int      @default(200) @map("daily_reply_cap")
   replyMinDelaySec Int      @default(15) @map("reply_min_delay_sec")
@@ -169,7 +169,7 @@ model ChatbotConfig {
   priorityJids          Json      @default("[]") @map("priority_jids")
   quietStart            Int?      @map("quiet_start")
   quietEnd              Int?      @map("quiet_end")
-  systemPromptUpdatedAt DateTime? @map("system_prompt_updated_at")
+  knowledgeBaseUpdatedAt DateTime? @map("knowledge_base_updated_at")
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 

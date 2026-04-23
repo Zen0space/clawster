@@ -83,7 +83,7 @@ export async function chatbotRoutes(app: FastifyInstance) {
     if (!session) return reply.status(404).send({ error: "not_found" });
 
     const b = request.body as Record<string, unknown>;
-    const systemPrompt = typeof b.systemPrompt === "string" ? b.systemPrompt : "";
+    const knowledgeBase = typeof b.knowledgeBase === "string" ? b.knowledgeBase : "";
     // 0 = omit max_tokens entirely (unconstrained); otherwise clamp to [64, 16384]
     const rawMax = Number(b.maxTokens);
     const maxTokens = rawMax === 0 ? 0 : Math.min(16384, Math.max(64, rawMax || 4096));
@@ -98,10 +98,10 @@ export async function chatbotRoutes(app: FastifyInstance) {
     const quietEnd = quietStart == null ? null : (b.quietEnd == null ? null : Math.min(23, Math.max(0, Number(b.quietEnd))));
     const enabled = Boolean(b.enabled);
 
-    if (systemPrompt.length > 8000) return reply.status(400).send({ error: "system_prompt_too_long" });
+    if (knowledgeBase.length > 8000) return reply.status(400).send({ error: "knowledge_base_too_long" });
     if (quietStart != null && quietEnd == null) return reply.status(400).send({ error: "quiet_hours_incomplete" });
 
-    const config = await saveChatbotConfig(waSessionId, { enabled, systemPrompt, maxTokens, dailyReplyCap, replyMinDelaySec, replyMaxDelaySec, priorityJids, quietStart, quietEnd });
+    const config = await saveChatbotConfig(waSessionId, { enabled, knowledgeBase, maxTokens, dailyReplyCap, replyMinDelaySec, replyMaxDelaySec, priorityJids, quietStart, quietEnd });
     await prisma.auditLog.create({ data: { userId: request.user.sub, action: "chatbot.config.save", subject: waSessionId } });
     return config;
   });

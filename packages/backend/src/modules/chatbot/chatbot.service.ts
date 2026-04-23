@@ -2,7 +2,7 @@ import { prisma } from "@clawster/db";
 
 type ChatbotConfigInput = {
   enabled: boolean;
-  systemPrompt: string;
+  knowledgeBase: string;
   maxTokens: number;
   dailyReplyCap: number;
   replyMinDelaySec: number;
@@ -13,7 +13,7 @@ type ChatbotConfigInput = {
 };
 
 const CONFIG_DEFAULTS: Omit<ChatbotConfigInput, "enabled"> = {
-  systemPrompt: "",
+  knowledgeBase: "",
   maxTokens: 4096,
   dailyReplyCap: 200,
   replyMinDelaySec: 15,
@@ -39,18 +39,18 @@ export async function getChatbotConfig(waSessionId: string): Promise<ChatbotConf
 
 export async function saveChatbotConfig(waSessionId: string, data: ChatbotConfigInput): Promise<ChatbotConfigRow> {
   const existing = await prisma.chatbotConfig.findUnique({ where: { waSessionId } });
-  const promptChanged = !existing || existing.systemPrompt !== data.systemPrompt;
+  const knowledgeChanged = !existing || existing.knowledgeBase !== data.knowledgeBase;
   const now = new Date();
   const result = await prisma.chatbotConfig.upsert({
     where: { waSessionId },
     update: {
       ...data,
-      ...(promptChanged ? { systemPromptUpdatedAt: now } : {}),
+      ...(knowledgeChanged ? { knowledgeBaseUpdatedAt: now } : {}),
     },
     create: {
       waSessionId,
       ...data,
-      systemPromptUpdatedAt: data.systemPrompt ? now : null,
+      knowledgeBaseUpdatedAt: data.knowledgeBase ? now : null,
     },
   });
   return { ...result, priorityJids: result.priorityJids as string[] };

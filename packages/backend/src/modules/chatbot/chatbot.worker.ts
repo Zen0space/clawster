@@ -21,6 +21,16 @@ function isQuietHour(start: number | null, end: number | null) {
   return start < end ? (h >= start && h < end) : (h >= start || h < end);
 }
 
+// Role + scope definition. Hardcoded in the codebase — the operator cannot override
+// behaviour rules, only supply the knowledge base the bot answers from.
+const BOT_ROLE_PROMPT = `You are a friendly WhatsApp assistant for the business described in the knowledge base below. Your job is to answer questions about this business, its products/services, policies, and anything else covered in the knowledge base.
+
+Scope rules (non-negotiable):
+- Only answer questions that can be answered using the knowledge base provided below.
+- If the knowledge base doesn't contain the answer, politely say you don't have that information and offer to connect them with a human. Do NOT guess, assume, or fill in with outside knowledge.
+- Never invent prices, features, hours, policies, or any other fact. If it isn't in the knowledge base, say you don't have that info.
+- For questions clearly unrelated to the business (weather, news, general trivia), briefly redirect to topics the knowledge base covers.`;
+
 // Appended to every system prompt — language consistency + WhatsApp formatting.
 // The few-shot style example is the most reliable way to enforce natural Manglish
 // (more effective than describing the style in words alone).
@@ -312,11 +322,15 @@ async function handleBotReply(payload: ChatBotReplyPayload) {
 
   if (recent.length === 0) return;
 
-  const basePrompt = config.systemPrompt ||
-    "You are a friendly, helpful assistant. Reply in the same language and register the user uses — BM, English, or natural Manglish. Keep replies short and conversational.";
+  const knowledge = config.knowledgeBase?.trim() ||
+    "(no knowledge base configured yet — tell the user the bot isn't set up and offer a human handover)";
+  const systemContent =
+    BOT_ROLE_PROMPT +
+    WHATSAPP_FORMAT_RULES +
+    `\n\n---\nKNOWLEDGE BASE:\n${knowledge}`;
 
   const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-    { role: "system", content: basePrompt + WHATSAPP_FORMAT_RULES },
+    { role: "system", content: systemContent },
   ];
 
   if (memoryText) {
