@@ -6,6 +6,13 @@ All notable changes to Clawster are documented here.
 
 ## Releases
 
+## [v1.2.3] — 2026-04-24
+
+### Fixed
+- **Stay signed in** — your session now refreshes itself in the background a minute before it would expire, so saving settings, opening conversations, or any other action no longer fails with a sign-in error mid-use.
+
+---
+
 ## [v1.2.0] — 2026-04-24
 
 ### New
