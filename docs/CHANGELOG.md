@@ -6,6 +6,13 @@ All notable changes to Clawster are documented here.
 
 ## Releases
 
+## [v1.2.4] — 2026-04-24
+
+### Fixed
+- **In-app updates now work** — clicking **check for update** on the Changelog page actually downloads and installs the new version when one is available, instead of failing with a "failed — retry" message. After this release, you'll be able to update Clawster from inside the app — no more visiting the GitHub releases page to grab a fresh installer.
+
+---
+
 ## [v1.2.3] — 2026-04-24
 
 ### Fixed
