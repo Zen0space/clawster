@@ -1,20 +1,102 @@
 name: Release
 
 on:
-  push:
-    tags: ["v*"]
+  pull_request:
+    types: [closed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to release (e.g. v1.0.3)"
+        description: "Tag to release (e.g. v1.2.0)"
         required: true
 
 permissions:
   contents: write
 
 jobs:
+  # ── Step 1: resolve or create the release tag ─────────────────────────────
+  tag:
+    name: Resolve tag
+    if: >
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.merged == true &&
+       !contains(github.event.pull_request.title, '[skip release]')) ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Resolve and create tag
+        id: resolve
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+            git tag "$TAG" 2>/dev/null || true
+            git push origin "$TAG" 2>/dev/null || true
+            echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # PR merge: read version from package.json
+          VERSION=$(jq -r '.version' packages/desktop/package.json)
+          TAG="v${VERSION}"
+
+          # Skip if tag already exists
+          if git tag -l "$TAG" | grep -q .; then
+            echo "Tag ${TAG} already exists — skipping."
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Validate version is newer than latest non-beta tag
+          LATEST=$(git tag -l 'v*' | grep -v '\-' | sed 's/^v//' | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)
+          if [ -n "$LATEST" ]; then
+            IFS='.' read -r CM CN CP <<< "$VERSION"
+            IFS='.' read -r LM LN LP <<< "$LATEST"
+            NEWER=false
+            [ "$CM" -gt "$LM" ] && NEWER=true
+            [ "$CM" -eq "$LM" ] && [ "$CN" -gt "$LN" ] && NEWER=true
+            [ "$CM" -eq "$LM" ] && [ "$CN" -eq "$LN" ] && [ "$CP" -gt "$LP" ] && NEWER=true
+            if [ "$NEWER" = "false" ]; then
+              echo "Version ${VERSION} is not newer than v${LATEST} — skipping."
+              echo "tag=" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        if: always()
+        run: |
+          TAG="${{ steps.resolve.outputs.tag }}"
+          if [ -n "$TAG" ]; then
+            echo "### Release: ${TAG}" >> "$GITHUB_STEP_SUMMARY"
+            echo "Building macOS + Windows installers…" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### Release skipped" >> "$GITHUB_STEP_SUMMARY"
+            echo "Version not bumped or tag already exists." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # ── Step 2: build installers ──────────────────────────────────────────────
   build:
     name: Build ${{ matrix.name }}
+    needs: tag
+    if: needs.tag.outputs.tag != ''
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -81,21 +163,22 @@ jobs:
             else shasum -a 256 "$@"; fi
           }
           mkdir -p dist
-          # Primary bundle (dmg / exe)
           bundle_dir="packages/desktop/src-tauri/target/${{ matrix.target }}/release/bundle"
-          for f in "$bundle_dir"/${{ matrix.bundles == 'dmg,updater' && 'dmg' || matrix.bundles }}/*.${{ matrix.bundle_ext }}; do
+          # Primary installer
+          for f in "$bundle_dir/dmg"/*.${{ matrix.bundle_ext }} "$bundle_dir/nsis"/*.${{ matrix.bundle_ext }}; do
+            [ -f "$f" ] || continue
             base="${{ matrix.artifact }}.${{ matrix.bundle_ext }}"
             cp "$f" "dist/$base"
             (cd dist && hash_cmd "$base" > "$base.sha256")
           done
-          # Updater artifacts (.app.tar.gz + .sig for macOS, .exe.sig for Windows)
+          # macOS updater bundle (.app.tar.gz + .sig)
           if [ -d "$bundle_dir/updater" ]; then
             for f in "$bundle_dir/updater"/*.tar.gz "$bundle_dir/updater"/*.tar.gz.sig; do
               [ -f "$f" ] && cp "$f" dist/
             done
           fi
-          # Windows NSIS .sig
-          for f in "$bundle_dir/nsis"/*.exe.sig 2>/dev/null; do
+          # Windows NSIS signature
+          for f in "$bundle_dir/nsis"/*.exe.sig; do
             [ -f "$f" ] && cp "$f" dist/
           done
           ls -lah dist/
@@ -107,9 +190,11 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+  # ── Step 3: publish GitHub release ───────────────────────────────────────
   release:
-    name: Create Release
-    needs: build
+    name: Publish Release
+    needs: [tag, build]
+    if: needs.tag.outputs.tag != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -120,25 +205,18 @@ jobs:
       - name: List artifacts
         run: ls -lah artifacts/
 
-      - name: Resolve tag
-        id: tag
-        run: |
-          TAG="${{ github.event.inputs.tag || github.ref_name }}"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-
       - name: Generate latest.json for updater
-        id: manifest
         run: |
           set -euo pipefail
-          TAG="${{ steps.tag.outputs.tag }}"
+          TAG="${{ needs.tag.outputs.tag }}"
           VERSION="${TAG#v}"
           REPO="https://github.com/${{ github.repository }}"
           BASE="${REPO}/releases/download/${TAG}"
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-          # Read signatures
           MAC_SIG=$(cat artifacts/*.app.tar.gz.sig 2>/dev/null | tr -d '\n' || echo "")
           WIN_SIG=$(cat artifacts/*.exe.sig 2>/dev/null | tr -d '\n' || echo "")
+          MAC_TAR=$(ls artifacts/*.app.tar.gz 2>/dev/null | xargs basename 2>/dev/null || echo "")
 
           cat > artifacts/latest.json <<EOF
           {
@@ -147,7 +225,7 @@ jobs:
             "pub_date": "${PUB_DATE}",
             "platforms": {
               "darwin-aarch64": {
-                "url": "${BASE}/$(ls artifacts/*.app.tar.gz | xargs basename)",
+                "url": "${BASE}/${MAC_TAR}",
                 "signature": "${MAC_SIG}"
               },
               "windows-x86_64": {
@@ -157,14 +235,13 @@ jobs:
             }
           }
           EOF
-          echo "Generated latest.json:"
           cat artifacts/latest.json
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: ${{ steps.tag.outputs.tag }}
+          tag_name: ${{ needs.tag.outputs.tag }}
+          name: ${{ needs.tag.outputs.tag }}
           generate_release_notes: true
           files: artifacts/*
           draft: false
