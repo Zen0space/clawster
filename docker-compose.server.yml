@@ -54,6 +54,17 @@ services:
     networks:
       - proxy-net
 
+  clawster-webapp:
+    build:
+      context: .
+      dockerfile: packages/webapp/Dockerfile
+      args:
+        VITE_API_URL: https://wsbe.senireka.my
+    container_name: clawster-webapp
+    restart: unless-stopped
+    networks:
+      - proxy-net
+
 networks:
   proxy-net:
     external: true

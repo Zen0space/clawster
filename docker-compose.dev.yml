@@ -40,6 +40,17 @@ services:
       timeout: 5s
       retries: 5
 
+  clawster-webapp-dev:
+    build:
+      context: .
+      dockerfile: packages/webapp/Dockerfile
+      args:
+        VITE_API_URL: https://dev-wsbe.senireka.my
+    container_name: clawster-webapp-dev
+    restart: unless-stopped
+    networks:
+      - proxy-net
+
 networks:
   proxy-net:
     external: true
