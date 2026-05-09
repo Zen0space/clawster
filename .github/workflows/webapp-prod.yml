@@ -1,0 +1,55 @@
+name: Webapp — Production deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/webapp/**"
+      - "packages/db/**"
+      - ".github/workflows/webapp-prod.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: webapp-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build webapp (prebuilt artifact, no Vercel build minutes)
+        run: pnpm --filter @clawster/webapp build
+
+      - name: Pull Vercel project metadata
+        run: npx vercel@latest pull --yes --environment=production --token=$VERCEL_TOKEN
+        working-directory: packages/webapp
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Vercel build (uses our prebuilt dist via no-op buildCommand)
+        run: npx vercel@latest build --prod --token=$VERCEL_TOKEN
+        working-directory: packages/webapp
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to production
+        run: npx vercel@latest deploy --prebuilt --prod --token=$VERCEL_TOKEN
+        working-directory: packages/webapp
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

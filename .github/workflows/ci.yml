@@ -39,7 +39,7 @@ jobs:
 
       - name: Ban `as any` casts
         run: |
-          if grep -rn --include="*.ts" --include="*.tsx" "as any\b" packages/backend/src packages/desktop/src; then
+          if grep -rn --include="*.ts" --include="*.tsx" "as any\b" packages/backend/src packages/desktop/src packages/webapp/src; then
             echo "::error::Found \`as any\` casts above — use proper types or \`as unknown as <Type>\`"
             exit 1
           fi

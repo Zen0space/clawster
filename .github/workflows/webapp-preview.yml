@@ -1,0 +1,68 @@
+name: Webapp — Preview deploy
+
+on:
+  pull_request:
+    paths:
+      - "packages/webapp/**"
+      - "packages/db/**"
+      - ".github/workflows/webapp-preview.yml"
+
+concurrency:
+  group: webapp-preview-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build webapp
+        run: pnpm --filter @clawster/webapp build
+
+      - name: Pull Vercel project metadata
+        run: npx vercel@latest pull --yes --environment=preview --token=$VERCEL_TOKEN
+        working-directory: packages/webapp
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Vercel build (preview)
+        run: npx vercel@latest build --token=$VERCEL_TOKEN
+        working-directory: packages/webapp
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy preview
+        id: deploy
+        run: |
+          URL=$(npx vercel@latest deploy --prebuilt --token=$VERCEL_TOKEN)
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+        working-directory: packages/webapp
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Comment preview URL on PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: webapp-preview
+          message: |
+            🔗 **webapp preview**: ${{ steps.deploy.outputs.url }}
+
+            Built from `${{ github.event.pull_request.head.sha }}`

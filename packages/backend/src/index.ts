@@ -74,7 +74,26 @@ app.addHook("onResponse", (request, reply, done) => {
 });
 
 // ── Plugins ───────────────────────────────────────────────────────────────────
-app.register(cors, { origin: true, allowedHeaders: ["Authorization", "Content-Type"] });
+// Dev (no WEBAPP_ORIGIN): allow everything for `pnpm dev:webapp` + Tauri.
+// Prod (WEBAPP_ORIGIN set): allow only the configured webapp + Vercel previews for the project.
+const webappOrigin = process.env.WEBAPP_ORIGIN;
+const previewOriginPattern = process.env.WEBAPP_PREVIEW_PATTERN; // e.g. ^https://clawster-[a-z0-9-]+\.vercel\.app$
+if (webappOrigin) {
+  const allowed: Array<string | RegExp> = [webappOrigin];
+  if (previewOriginPattern) allowed.push(new RegExp(previewOriginPattern));
+  app.register(cors, {
+    origin: (origin, cb) => {
+      if (!origin || allowed.some((a) => (a instanceof RegExp ? a.test(origin) : a === origin))) {
+        cb(null, true);
+      } else {
+        cb(new Error("origin not allowed"), false);
+      }
+    },
+    allowedHeaders: ["Authorization", "Content-Type"],
+  });
+} else {
+  app.register(cors, { origin: true, allowedHeaders: ["Authorization", "Content-Type"] });
+}
 app.register(multipart, { limits: { fileSize: 25 * 1024 * 1024, files: 1 } });
 app.register(websocketPlugin);
 

@@ -1,0 +1,60 @@
+name: clawster
+
+services:
+  clawster-backend:
+    build:
+      context: .
+      dockerfile: packages/backend/Dockerfile
+    container_name: clawster-backend
+    restart: unless-stopped
+    env_file: .env.prod
+    volumes:
+      - /mnt/storage/docker-volumes/clawster/media:/app/data/media
+    networks:
+      - proxy-net
+      - internal
+    depends_on:
+      clawster-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  clawster-db:
+    image: postgres:16-alpine
+    container_name: clawster-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: clawster
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: clawster
+    volumes:
+      - /mnt/storage/docker-volumes/clawster/postgres-data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clawster -d clawster"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  clawster-cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: clawster-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
+    depends_on:
+      - clawster-backend
+    extra_hosts:
+      # Lets cloudflared reach rkb host services (e.g. SSH on :22) via host.docker.internal.
+      # Used later by ssh.senireka.my route in plan-deploy.md.
+      - "host.docker.internal:host-gateway"
+    networks:
+      - proxy-net
+
+networks:
+  proxy-net:
+    external: true
+  internal:
