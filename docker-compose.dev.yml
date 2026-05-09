@@ -1,0 +1,46 @@
+name: clawster-dev
+
+services:
+  clawster-backend-dev:
+    build:
+      context: .
+      dockerfile: packages/backend/Dockerfile
+    container_name: clawster-backend-dev
+    restart: unless-stopped
+    env_file: .env.dev
+    volumes:
+      - /mnt/storage/docker-volumes/clawster-dev/media:/app/data/media
+    networks:
+      - proxy-net
+      - internal
+    depends_on:
+      clawster-db-dev:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  clawster-db-dev:
+    image: postgres:16-alpine
+    container_name: clawster-db-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: clawster
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: clawster
+    volumes:
+      - /mnt/storage/docker-volumes/clawster-dev/postgres-data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clawster -d clawster"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  proxy-net:
+    external: true
+  internal:

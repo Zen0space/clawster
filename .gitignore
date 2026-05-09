@@ -29,9 +29,9 @@ packages/desktop/src-tauri/icons/
 
 # ─── Environment files ───────────────────────────────────────────────────────
 .env
-.env.local
-.env.*.local
-# keep .env.example files tracked
+.env.*
+!.env.example
+!.env.*.example
 
 # ─── Logs ────────────────────────────────────────────────────────────────────
 *.log
