@@ -4,6 +4,7 @@
   "scripts": {
     "dev:backend": "pnpm --filter @clawster/backend dev",
     "dev:desktop": "pnpm --filter @clawster/desktop dev",
+    "dev:webapp": "pnpm --filter @clawster/webapp dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r --parallel lint",
