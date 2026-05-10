@@ -17,6 +17,25 @@ import type {
   ChatConversation,
 } from "./types";
 
+export type {
+  AuthUser,
+  LoginResponse,
+  TokenResponse,
+  DashboardStats,
+  ContactList,
+  Contact,
+  ImportResult,
+  Campaign,
+  CampaignMessage,
+  CreateCampaignInput,
+  ChatbotConfig,
+  ChatHealthCheck,
+  ChatHealth,
+  ChatStats,
+  ChatInboxMessage,
+  ChatConversation,
+} from "./types";
+
 const BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 async function buildHeaders(token: string | null, init?: HeadersInit, body?: BodyInit | null) {
