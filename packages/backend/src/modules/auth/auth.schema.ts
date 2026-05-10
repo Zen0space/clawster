@@ -1,7 +1,12 @@
 import { z } from "zod";
 
+const normalizedEmail = z
+  .string()
+  .email()
+  .transform((s) => s.trim().toLowerCase());
+
 export const loginSchema = z.object({
-  email: z.string().email(),
+  email: normalizedEmail,
   password: z.string().min(1),
 });
 
@@ -10,7 +15,7 @@ export const refreshSchema = z.object({
 });
 
 export const registerSchema = z.object({
-  email: z.string().email(),
+  email: normalizedEmail,
   password: z.string().min(8),
   fullName: z.string().optional(),
   licenseKey: z.string().min(1),

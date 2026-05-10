@@ -12,6 +12,7 @@ ENV VITE_API_URL=$VITE_API_URL
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY packages/db/package.json       ./packages/db/
+COPY packages/shared/package.json   ./packages/shared/
 COPY packages/backend/package.json  ./packages/backend/
 COPY packages/desktop/package.json  ./packages/desktop/
 COPY packages/webapp/package.json   ./packages/webapp/
@@ -19,8 +20,10 @@ RUN pnpm install --frozen-lockfile --filter "@clawster/webapp..."
 
 COPY tsconfig.base.json ./
 COPY docs ./docs
+COPY packages/shared ./packages/shared
 COPY packages/webapp ./packages/webapp
-RUN pnpm --filter @clawster/webapp build
+RUN pnpm --filter @clawster/shared build \
+    && pnpm --filter @clawster/webapp build
 # Produces /app/packages/webapp/dist
 
 # ─── runtime ─────────────────────────────────────────────────────────────────

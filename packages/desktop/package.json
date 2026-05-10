@@ -12,6 +12,7 @@
     "tauri:build": "tauri build"
   },
   "dependencies": {
+    "@clawster/shared": "workspace:*",
     "@tanstack/react-query": "^5.74.4",
     "@tauri-apps/api": "^2.5.0",
     "@tauri-apps/plugin-fs": "^2.5.0",

@@ -1,31 +1,32 @@
 {
-  "name": "@clawster/webapp",
-  "version": "0.0.1",
+  "name": "@clawster/shared",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint src"
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "@clawster/shared": "workspace:*",
+  "peerDependencies": {
     "@tanstack/react-query": "^5.74.4",
     "jotai": "^2.19.1",
     "qrcode": "^1.5.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^6.28.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@tanstack/react-query": "^5.74.4",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
-    "@vitejs/plugin-react": "^4.4.1",
+    "jotai": "^2.19.1",
+    "qrcode": "^1.5.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
     "typescript": "^5.8.3",
-    "vite": "^6.3.3"
+    "xlsx": "^0.18.5"
   }
 }
