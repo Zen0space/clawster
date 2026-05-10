@@ -31,8 +31,11 @@ declare module "fastify" {
   }
 }
 
-app.addHook("onRequest", (req, _reply, done) => {
+app.addHook("onRequest", (req, reply, done) => {
   req._startedAt = performance.now();
+  // Echo Fastify's auto-generated request ID back so a client error report can
+  // be correlated with backend logs without operator detective work.
+  reply.header("X-Request-Id", req.id);
   done();
 });
 
@@ -41,7 +44,7 @@ app.addHook("onResponse", (req, reply, done) => {
   // Skip noise from preflight + health + metrics scrapes
   if (req.method !== "OPTIONS" && url !== "/healthz" && url !== "/readyz" && url !== "/metrics") {
     const durMs = req._startedAt ? performance.now() - req._startedAt : 0;
-    log.api(req.method, req.url, reply.statusCode, durMs);
+    log.api(req.method, req.url, reply.statusCode, durMs, req.id);
   }
   done();
 });
@@ -95,6 +98,7 @@ if (env.WEBAPP_ORIGIN) {
       }
     },
     allowedHeaders: ["Authorization", "Content-Type"],
+    exposedHeaders: ["X-Request-Id"],
   });
 } else {
   app.register(cors, { origin: true, allowedHeaders: ["Authorization", "Content-Type"] });
