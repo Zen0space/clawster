@@ -1,8 +1,19 @@
 import "dotenv/config";
 
-function validate(): { JWT_SECRET: string; DATABASE_URL: string; MASTER_KEY: string; PORT: number; HOST: string } {
+function validate(): {
+  JWT_SECRET: string;
+  DATABASE_URL: string;
+  MASTER_KEY: string;
+  PORT: number;
+  HOST: string;
+  NODE_ENV: string;
+  WEBAPP_ORIGIN?: string;
+  WEBAPP_PREVIEW_PATTERN?: string;
+} {
   const errors: string[] = [];
   const { JWT_SECRET, DATABASE_URL, MASTER_KEY } = process.env;
+  const NODE_ENV = process.env.NODE_ENV ?? "development";
+  const isProd = NODE_ENV === "production";
 
   if (!JWT_SECRET) {
     errors.push("JWT_SECRET is required. Generate with: openssl rand -base64 48");
@@ -24,6 +35,10 @@ function validate(): { JWT_SECRET: string; DATABASE_URL: string; MASTER_KEY: str
     errors.push(`MASTER_KEY must be a 64-char hex string (32 bytes). Generate with: openssl rand -hex 32`);
   }
 
+  if (isProd && !process.env.WEBAPP_ORIGIN) {
+    errors.push("WEBAPP_ORIGIN is required when NODE_ENV=production (CORS would otherwise allow all origins)");
+  }
+
   if (errors.length) {
     const msg = `Invalid environment configuration:\n${errors.map((e) => `  - ${e}`).join("\n")}`;
     throw new Error(msg);
@@ -35,6 +50,9 @@ function validate(): { JWT_SECRET: string; DATABASE_URL: string; MASTER_KEY: str
     MASTER_KEY: MASTER_KEY as string,
     PORT: Number(process.env.PORT ?? 8080),
     HOST: process.env.HOST ?? "0.0.0.0",
+    NODE_ENV,
+    WEBAPP_ORIGIN: process.env.WEBAPP_ORIGIN,
+    WEBAPP_PREVIEW_PATTERN: process.env.WEBAPP_PREVIEW_PATTERN,
   };
 }
 

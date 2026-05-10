@@ -45,7 +45,24 @@ export async function rotateRefreshToken(rawToken: string) {
 
   const stored = await prisma.refreshToken.findUnique({ where: { tokenHash } });
 
-  if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
+  if (!stored || stored.expiresAt < new Date()) {
+    throw Object.assign(new Error("invalid_refresh_token"), { statusCode: 401 });
+  }
+
+  // Reuse detection: a revoked token being presented again means either the
+  // legitimate user kept a stale token, or — more likely if it ever happens —
+  // the refresh token was stolen and the attacker is replaying it after the
+  // legitimate user already rotated. Either way, the safe response is to
+  // revoke ALL refresh tokens for this user (force-logout everywhere) and
+  // record an audit row so the incident is investigatable.
+  if (stored.revokedAt) {
+    await prisma.refreshToken.updateMany({
+      where: { userId: stored.userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    await prisma.auditLog.create({
+      data: { userId: stored.userId, action: "auth.refresh_reuse_detected", subject: stored.id },
+    });
     throw Object.assign(new Error("invalid_refresh_token"), { statusCode: 401 });
   }
 

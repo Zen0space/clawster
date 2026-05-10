@@ -17,7 +17,11 @@ import { reconnectAll } from "./modules/wa/wa.service";
 import { registry, httpRequestsTotal } from "./metrics";
 import { log } from "./logger";
 
-const app = Fastify({ logger: false, disableRequestLogging: true });
+const app = Fastify({
+  logger: false,
+  disableRequestLogging: true,
+  bodyLimit: 1024 * 1024, // 1 MB JSON body cap (multipart has its own limit)
+});
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -75,13 +79,11 @@ app.addHook("onResponse", (request, reply, done) => {
 });
 
 // ── Plugins ───────────────────────────────────────────────────────────────────
-// Dev (no WEBAPP_ORIGIN): allow everything for `pnpm dev:webapp` + Tauri.
-// Prod (WEBAPP_ORIGIN set): allow only the configured webapp + Vercel previews for the project.
-const webappOrigin = process.env.WEBAPP_ORIGIN;
-const previewOriginPattern = process.env.WEBAPP_PREVIEW_PATTERN; // e.g. ^https://clawster-[a-z0-9-]+\.vercel\.app$
-if (webappOrigin) {
-  const allowed: Array<string | RegExp> = [webappOrigin];
-  if (previewOriginPattern) allowed.push(new RegExp(previewOriginPattern));
+// Dev (no WEBAPP_ORIGIN, NODE_ENV != production): allow everything for `pnpm dev:webapp` + Tauri.
+// Prod: env.ts requires WEBAPP_ORIGIN, so this branch is the only one taken.
+if (env.WEBAPP_ORIGIN) {
+  const allowed: Array<string | RegExp> = [env.WEBAPP_ORIGIN];
+  if (env.WEBAPP_PREVIEW_PATTERN) allowed.push(new RegExp(env.WEBAPP_PREVIEW_PATTERN));
   app.register(cors, {
     origin: (origin, cb) => {
       if (!origin || allowed.some((a) => (a instanceof RegExp ? a.test(origin) : a === origin))) {
