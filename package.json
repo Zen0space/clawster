@@ -11,7 +11,8 @@
     "db:generate": "pnpm --filter @clawster/db generate",
     "db:migrate:dev": "pnpm --filter @clawster/db migrate:dev",
     "db:migrate:deploy": "pnpm --filter @clawster/db migrate:deploy",
-    "db:studio": "pnpm --filter @clawster/db studio"
+    "db:studio": "pnpm --filter @clawster/db studio",
+    "db:fix-emails": "pnpm --filter @clawster/backend fix-emails"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
