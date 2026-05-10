@@ -9,7 +9,19 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit"
   },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.74.4",
+    "jotai": "^2.19.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
   "devDependencies": {
+    "@tanstack/react-query": "^5.74.4",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "jotai": "^2.19.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
     "typescript": "^5.8.3"
   }
 }
