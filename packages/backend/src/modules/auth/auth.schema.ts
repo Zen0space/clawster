@@ -7,4 +7,4 @@ export {
   type LoginBody,
   type RefreshBody,
   type RegisterBody,
-} from "@clawster/shared";
+} from "@clawster/shared/schemas/auth";

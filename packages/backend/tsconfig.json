@@ -6,7 +6,11 @@
     "outDir": "dist",
     "rootDir": "src",
     "declaration": false,
-    "declarationMap": false
+    "declarationMap": false,
+    "baseUrl": ".",
+    "paths": {
+      "@clawster/shared/schemas/auth": ["../shared/dist/schemas/auth.d.ts"]
+    }
   },
   "include": ["src"]
 }
