@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-function validate(): {
+export type Env = {
   JWT_SECRET: string;
   DATABASE_URL: string;
   MASTER_KEY: string;
@@ -9,10 +9,14 @@ function validate(): {
   NODE_ENV: string;
   WEBAPP_ORIGIN?: string;
   WEBAPP_PREVIEW_PATTERN?: string;
-} {
+};
+
+// Exported so tests can hand in a synthetic process.env without touching the
+// real one. The module-load singleton below uses process.env directly.
+export function validateEnv(input: NodeJS.ProcessEnv): Env {
   const errors: string[] = [];
-  const { JWT_SECRET, DATABASE_URL, MASTER_KEY } = process.env;
-  const NODE_ENV = process.env.NODE_ENV ?? "development";
+  const { JWT_SECRET, DATABASE_URL, MASTER_KEY } = input;
+  const NODE_ENV = input.NODE_ENV ?? "development";
   const isProd = NODE_ENV === "production";
 
   if (!JWT_SECRET) {
@@ -35,7 +39,7 @@ function validate(): {
     errors.push(`MASTER_KEY must be a 64-char hex string (32 bytes). Generate with: openssl rand -hex 32`);
   }
 
-  if (isProd && !process.env.WEBAPP_ORIGIN) {
+  if (isProd && !input.WEBAPP_ORIGIN) {
     errors.push("WEBAPP_ORIGIN is required when NODE_ENV=production (CORS would otherwise allow all origins)");
   }
 
@@ -48,12 +52,12 @@ function validate(): {
     JWT_SECRET: JWT_SECRET as string,
     DATABASE_URL: DATABASE_URL as string,
     MASTER_KEY: MASTER_KEY as string,
-    PORT: Number(process.env.PORT ?? 8080),
-    HOST: process.env.HOST ?? "0.0.0.0",
+    PORT: Number(input.PORT ?? 8080),
+    HOST: input.HOST ?? "0.0.0.0",
     NODE_ENV,
-    WEBAPP_ORIGIN: process.env.WEBAPP_ORIGIN,
-    WEBAPP_PREVIEW_PATTERN: process.env.WEBAPP_PREVIEW_PATTERN,
+    WEBAPP_ORIGIN: input.WEBAPP_ORIGIN,
+    WEBAPP_PREVIEW_PATTERN: input.WEBAPP_PREVIEW_PATTERN,
   };
 }
 
-export const env = validate();
+export const env = validateEnv(process.env);

@@ -3,10 +3,13 @@ import { z } from "zod";
 // Email is canonicalized at the schema layer so register and login agree on
 // what "the same email" means. Postgres findUnique is case-sensitive — without
 // this, `Foo@x.com` registered + `foo@x.com` login = 401 invalid_credentials.
+// trim + lowercase BEFORE the email format check so that input like
+// "  User@Example.com  " (common from clipboard paste) is normalized rather
+// than rejected as malformed.
 const normalizedEmail = z
   .string()
-  .email()
-  .transform((s) => s.trim().toLowerCase());
+  .transform((s) => s.trim().toLowerCase())
+  .pipe(z.string().email());
 
 export const loginSchema = z.object({
   email: normalizedEmail,

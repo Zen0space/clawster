@@ -42,3 +42,6 @@ jobs:
         # ESLint enforces @typescript-eslint/no-explicit-any: error for all
         # TS files across backend/desktop/webapp/shared — this catches both
         # `as any` casts and `: any` annotations, no separate grep needed.
+
+      - name: Test
+        run: pnpm test
