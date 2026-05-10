@@ -29,6 +29,9 @@ importers:
       '@clawster/db':
         specifier: workspace:*
         version: link:../db
+      '@clawster/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@fastify/cors':
         specifier: ^10.0.2
         version: 10.1.0
@@ -184,6 +187,10 @@ importers:
         version: 6.4.2(@types/node@22.19.17)(jiti@2.6.1)(tsx@4.21.0)
 
   packages/shared:
+    dependencies:
+      zod:
+        specifier: ^3.24.3
+        version: 3.25.76
     devDependencies:
       '@tanstack/react-query':
         specifier: ^5.74.4

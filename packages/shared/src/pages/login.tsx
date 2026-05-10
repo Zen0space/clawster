@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "../auth-context";
+import { loginSchema } from "../schemas/auth";
 
 type Props = { onNavigateToSignup: () => void };
 
 export function Login({ onNavigateToSignup }: Props) {
   const { login } = useAuth();
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const { mutate, isPending, error } = useMutation({
     mutationFn: (data: { email: string; password: string }) =>
@@ -15,10 +17,17 @@ export function Login({ onNavigateToSignup }: Props) {
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    mutate({
-      email: form.get("email") as string,
-      password: form.get("password") as string,
+    const parsed = loginSchema.safeParse({
+      email: form.get("email"),
+      password: form.get("password"),
     });
+    if (!parsed.success) {
+      setValidationError(parsed.error.issues[0]?.message ?? "invalid input");
+      return;
+    }
+    setValidationError(null);
+    // parsed.data.email is now trim().toLowerCase() — server sees canonical form
+    mutate(parsed.data);
   }
 
   return (
@@ -61,6 +70,7 @@ export function Login({ onNavigateToSignup }: Props) {
             />
           </div>
 
+          {validationError && <p className="auth-error">{validationError}</p>}
           {error && <p className="auth-error">{error.message}</p>}
 
           <button className="auth-button" type="submit" disabled={isPending}>

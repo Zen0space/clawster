@@ -7,10 +7,11 @@ RUN apk add --no-cache openssl python3 make g++
 RUN corepack enable && corepack prepare pnpm@10.28.0 --activate
 WORKDIR /app
 
-# ─── install workspace deps (only backend + db) ──────────────────────────────
+# ─── install workspace deps (backend + shared + db) ─────────────────────────
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY packages/db/package.json ./packages/db/
+COPY packages/shared/package.json ./packages/shared/
 COPY packages/backend/package.json ./packages/backend/
 COPY packages/desktop/package.json ./packages/desktop/
 RUN pnpm install --frozen-lockfile --filter "@clawster/backend..." --filter "@clawster/db..."
@@ -19,9 +20,11 @@ RUN pnpm install --frozen-lockfile --filter "@clawster/backend..." --filter "@cl
 FROM deps AS build
 COPY tsconfig.base.json ./
 COPY packages/db ./packages/db
+COPY packages/shared ./packages/shared
 COPY packages/backend ./packages/backend
 RUN pnpm --filter @clawster/db generate \
     && pnpm --filter @clawster/db build \
+    && pnpm --filter @clawster/shared build \
     && pnpm --filter @clawster/backend build
 
 # ─── runtime ─────────────────────────────────────────────────────────────────
