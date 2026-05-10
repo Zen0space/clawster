@@ -109,6 +109,9 @@ jobs:
       - name: Build db package
         run: pnpm --filter @clawster/db build
 
+      - name: Build shared package
+        run: pnpm --filter @clawster/shared build
+
       # Tauri v2 doesn't substitute env vars inside tauri.conf.json — inject the
       # signing public key here before building so the updater can verify downloads.
       - name: Inject Tauri signing public key into config
