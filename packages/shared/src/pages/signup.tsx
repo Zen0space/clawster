@@ -1,14 +1,16 @@
-import React from "react";
+import React, { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "../auth-context";
+import { registerSchema } from "../schemas/auth";
 
 type Props = { onNavigateToLogin: () => void };
 
 export function Signup({ onNavigateToLogin }: Props) {
   const { register } = useAuth();
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const { mutate, isPending, error } = useMutation({
-    mutationFn: (data: { fullName: string; email: string; password: string; licenseKey: string }) =>
+    mutationFn: (data: { fullName?: string; email: string; password: string; licenseKey: string }) =>
       register(data.email, data.password, data.licenseKey, data.fullName || undefined),
   });
 
@@ -25,12 +27,19 @@ export function Signup({ onNavigateToLogin }: Props) {
       return;
     }
     confirmInput.setCustomValidity("");
-    mutate({
-      fullName: data.get("fullName") as string,
-      email: data.get("email") as string,
+    const fullName = (data.get("fullName") as string) || undefined;
+    const parsed = registerSchema.safeParse({
+      email: data.get("email"),
       password,
+      fullName,
       licenseKey: (data.get("licenseKey") as string).trim().toUpperCase(),
     });
+    if (!parsed.success) {
+      setValidationError(parsed.error.issues[0]?.message ?? "invalid input");
+      return;
+    }
+    setValidationError(null);
+    mutate(parsed.data);
   }
 
   return (
@@ -113,6 +122,7 @@ export function Signup({ onNavigateToLogin }: Props) {
             />
           </div>
 
+          {validationError && <p className="auth-error">{validationError}</p>}
           {error && (
             <p className="auth-error">
               {error.message === "invalid_license_key"

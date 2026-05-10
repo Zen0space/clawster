@@ -3,7 +3,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: ${PG_USER:-clawster}
-      POSTGRES_PASSWORD: ${PG_PASSWORD:-secret}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?PG_PASSWORD must be set in .env}
       POSTGRES_DB: ${PG_DB:-clawster}
     ports:
       - "127.0.0.1:5432:5432"

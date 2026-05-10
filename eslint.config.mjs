@@ -27,7 +27,11 @@ export default tseslint.config(
     },
   },
   {
-    files: ["packages/desktop/src/**/*.{ts,tsx}", "packages/webapp/src/**/*.{ts,tsx}"],
+    files: [
+      "packages/desktop/src/**/*.{ts,tsx}",
+      "packages/webapp/src/**/*.{ts,tsx}",
+      "packages/shared/src/**/*.{ts,tsx}",
+    ],
     languageOptions: {
       globals: { ...globals.browser },
     },

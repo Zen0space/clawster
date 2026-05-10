@@ -8,17 +8,21 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r --parallel lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:generate": "pnpm --filter @clawster/db generate",
     "db:migrate:dev": "pnpm --filter @clawster/db migrate:dev",
     "db:migrate:deploy": "pnpm --filter @clawster/db migrate:deploy",
-    "db:studio": "pnpm --filter @clawster/db studio"
+    "db:studio": "pnpm --filter @clawster/db studio",
+    "db:fix-emails": "pnpm --filter @clawster/backend fix-emails"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.2.1",
     "globals": "^17.5.0",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.59.0"
+    "typescript-eslint": "^8.59.0",
+    "vitest": "^4.1.5"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

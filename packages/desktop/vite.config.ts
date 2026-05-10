@@ -15,5 +15,16 @@ export default defineConfig({
     target: "es2021",
     minify: "esbuild",
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ["react", "react-dom"],
+          jotai: ["jotai", "jotai/utils"],
+          query: ["@tanstack/react-query"],
+          xlsx: ["xlsx"],
+          qrcode: ["qrcode"],
+        },
+      },
+    },
   },
 });

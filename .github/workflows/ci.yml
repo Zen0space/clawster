@@ -39,11 +39,9 @@ jobs:
 
       - name: Lint
         run: pnpm -r --parallel lint
+        # ESLint enforces @typescript-eslint/no-explicit-any: error for all
+        # TS files across backend/desktop/webapp/shared — this catches both
+        # `as any` casts and `: any` annotations, no separate grep needed.
 
-      - name: Ban `as any` casts
-        run: |
-          if grep -rn --include="*.ts" --include="*.tsx" "as any\b" packages/backend/src packages/desktop/src packages/webapp/src; then
-            echo "::error::Found \`as any\` casts above — use proper types or \`as unknown as <Type>\`"
-            exit 1
-          fi
-          echo "✓ no 'as any' casts found"
+      - name: Test
+        run: pnpm test

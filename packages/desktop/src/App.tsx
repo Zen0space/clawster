@@ -1,17 +1,25 @@
+import { lazy, Suspense } from "react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useAuth } from "./context/AuthContext";
 import { userAtom, authLoadingAtom, appPageAtom, authPageAtom, inboxUnreadAtom, type AppPage } from "./atoms";
-import { Login } from "./pages/Login";
-import { Signup } from "./pages/Signup";
-import { Dashboard } from "./pages/Dashboard";
-import { Sessions } from "./pages/Sessions";
-import { Contacts } from "./pages/Contacts";
-import { Campaigns } from "./pages/Campaigns";
-import { Inbox } from "./pages/Inbox";
-import { Chatbot } from "./pages/Chatbot";
-import { Settings } from "./pages/Settings";
-import { Changelog } from "./pages/Changelog";
 import pkg from "../package.json";
+
+// Each page becomes its own chunk — first navigation fetches it, subsequent
+// visits hit the browser cache. Cuts initial JS payload roughly in half.
+const Login = lazy(() => import("./pages/Login").then((m) => ({ default: m.Login })));
+const Signup = lazy(() => import("./pages/Signup").then((m) => ({ default: m.Signup })));
+const Dashboard = lazy(() => import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })));
+const Sessions = lazy(() => import("./pages/Sessions").then((m) => ({ default: m.Sessions })));
+const Contacts = lazy(() => import("./pages/Contacts").then((m) => ({ default: m.Contacts })));
+const Campaigns = lazy(() => import("./pages/Campaigns").then((m) => ({ default: m.Campaigns })));
+const Inbox = lazy(() => import("./pages/Inbox").then((m) => ({ default: m.Inbox })));
+const Chatbot = lazy(() => import("./pages/Chatbot").then((m) => ({ default: m.Chatbot })));
+const Settings = lazy(() => import("./pages/Settings").then((m) => ({ default: m.Settings })));
+const Changelog = lazy(() => import("./pages/Changelog").then((m) => ({ default: m.Changelog })));
+
+function PageFallback() {
+  return <div className="page-content"><p className="muted">loading…</p></div>;
+}
 
 const NAV: { id: AppPage; label: string }[] = [
   { id: "dashboard", label: "dashboard" },
@@ -91,21 +99,27 @@ export function App() {
   if (isLoading) return <div className="loading-screen">loading…</div>;
 
   if (!user) {
-    return authPage === "login"
-      ? <Login onSignup={() => setAuthPage("signup")} />
-      : <Signup onLogin={() => setAuthPage("login")} />;
+    return (
+      <Suspense fallback={<PageFallback />}>
+        {authPage === "login"
+          ? <Login onSignup={() => setAuthPage("signup")} />
+          : <Signup onLogin={() => setAuthPage("login")} />}
+      </Suspense>
+    );
   }
 
   return (
     <Layout>
-      {appPage === "dashboard" && <Dashboard onNavigate={setAppPage} />}
-      {appPage === "sessions" && <Sessions />}
-      {appPage === "contacts" && <Contacts />}
-      {appPage === "campaigns" && <Campaigns />}
-      {appPage === "inbox" && <Inbox />}
-      {appPage === "chatbot" && <Chatbot />}
-      {appPage === "settings" && <Settings />}
-      {appPage === "changelog" && <Changelog />}
+      <Suspense fallback={<PageFallback />}>
+        {appPage === "dashboard" && <Dashboard onNavigate={setAppPage} />}
+        {appPage === "sessions" && <Sessions />}
+        {appPage === "contacts" && <Contacts />}
+        {appPage === "campaigns" && <Campaigns />}
+        {appPage === "inbox" && <Inbox />}
+        {appPage === "chatbot" && <Chatbot />}
+        {appPage === "settings" && <Settings />}
+        {appPage === "changelog" && <Changelog />}
+      </Suspense>
     </Layout>
   );
 }

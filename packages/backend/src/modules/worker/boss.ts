@@ -1,5 +1,6 @@
 import { PgBoss } from "pg-boss";
+import { env } from "../../env";
 
 export const boss = new PgBoss({
-  connectionString: process.env.DATABASE_URL!,
+  connectionString: env.DATABASE_URL,
 });

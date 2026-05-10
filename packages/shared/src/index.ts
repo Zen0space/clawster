@@ -1,4 +1,12 @@
 export * from "./types";
+export {
+  loginSchema,
+  refreshSchema,
+  registerSchema,
+  type LoginBody,
+  type RefreshBody,
+  type RegisterBody,
+} from "./schemas/auth";
 export { api } from "./api";
 export { openEventSocket } from "./ws";
 export {

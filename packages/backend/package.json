@@ -8,10 +8,12 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "start": "node dist/index.js",
-    "seed": "tsx src/cmd/seed.ts"
+    "seed": "tsx src/cmd/seed.ts",
+    "fix-emails": "tsx src/cmd/fix-emails.ts"
   },
   "dependencies": {
     "@clawster/db": "workspace:*",
+    "@clawster/shared": "workspace:*",
     "@fastify/cors": "^10.0.2",
     "@fastify/multipart": "^9.0.3",
     "@fastify/rate-limit": "^10.2.2",

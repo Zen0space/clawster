@@ -11,8 +11,19 @@ import {
 } from "./auth.service";
 import { log } from "../../logger";
 
+// Stricter limit for auth endpoints — independent of the global 200/min.
+// 10 attempts per 15 minutes per IP makes brute force impractical without
+// breaking legitimate users who fat-finger their password a few times.
+const authRateLimit = {
+  rateLimit: {
+    max: 10,
+    timeWindow: "15 minutes",
+    keyGenerator: (req: { ip: string }) => req.ip,
+  },
+} as const;
+
 export async function authRoutes(app: FastifyInstance) {
-  app.post("/register", async (request, reply) => {
+  app.post("/register", { config: authRateLimit }, async (request, reply) => {
     const body = registerSchema.safeParse(request.body);
     if (!body.success) return reply.status(400).send({ error: "validation_error" });
 
@@ -38,10 +49,10 @@ export async function authRoutes(app: FastifyInstance) {
     const refreshToken = await issueRefreshToken(user.id);
 
     await prisma.auditLog.create({
-      data: { userId: user.id, action: "auth.register", subject: user.email },
+      data: { userId: user.id, action: "auth.register", subject: user.id },
     });
 
-    log.success(`user registered ${user.email}`);
+    log.success(`user registered (id=${user.id})`);
 
     return {
       access_token: accessToken,
@@ -50,7 +61,7 @@ export async function authRoutes(app: FastifyInstance) {
     };
   });
 
-  app.post("/login", async (request, reply) => {
+  app.post("/login", { config: authRateLimit }, async (request, reply) => {
     const body = loginSchema.safeParse(request.body);
     if (!body.success) return reply.status(400).send({ error: "validation_error" });
 
@@ -66,10 +77,10 @@ export async function authRoutes(app: FastifyInstance) {
     const refreshToken = await issueRefreshToken(user.id);
 
     await prisma.auditLog.create({
-      data: { userId: user.id, action: "auth.login", subject: user.email },
+      data: { userId: user.id, action: "auth.login", subject: user.id },
     });
 
-    log.success(`user logged in ${user.email}`);
+    log.success(`user logged in (id=${user.id})`);
 
     return {
       access_token: accessToken,
@@ -78,7 +89,7 @@ export async function authRoutes(app: FastifyInstance) {
     };
   });
 
-  app.post("/refresh", async (request, reply) => {
+  app.post("/refresh", { config: authRateLimit }, async (request, reply) => {
     const body = refreshSchema.safeParse(request.body);
     if (!body.success) return reply.status(400).send({ error: "validation_error" });
 

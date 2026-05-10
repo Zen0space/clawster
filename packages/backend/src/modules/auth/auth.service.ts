@@ -2,6 +2,7 @@ import argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import { createHash, randomUUID } from "node:crypto";
 import { prisma } from "@clawster/db";
+import { env } from "../../env";
 
 const ACCESS_EXPIRY_SEC = 15 * 60;
 const REFRESH_EXPIRY_MS = 14 * 24 * 60 * 60 * 1000;
@@ -20,13 +21,13 @@ export function verifyPassword(hash: string, password: string) {
 }
 
 export function issueAccessToken(userId: string): string {
-  return jwt.sign({ sub: userId }, process.env.JWT_SECRET!, {
+  return jwt.sign({ sub: userId }, env.JWT_SECRET, {
     expiresIn: ACCESS_EXPIRY_SEC,
   });
 }
 
 export function verifyAccessToken(token: string): { sub: string } {
-  return jwt.verify(token, process.env.JWT_SECRET!) as { sub: string };
+  return jwt.verify(token, env.JWT_SECRET) as { sub: string };
 }
 
 export async function issueRefreshToken(userId: string): Promise<string> {
@@ -44,7 +45,24 @@ export async function rotateRefreshToken(rawToken: string) {
 
   const stored = await prisma.refreshToken.findUnique({ where: { tokenHash } });
 
-  if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
+  if (!stored || stored.expiresAt < new Date()) {
+    throw Object.assign(new Error("invalid_refresh_token"), { statusCode: 401 });
+  }
+
+  // Reuse detection: a revoked token being presented again means either the
+  // legitimate user kept a stale token, or — more likely if it ever happens —
+  // the refresh token was stolen and the attacker is replaying it after the
+  // legitimate user already rotated. Either way, the safe response is to
+  // revoke ALL refresh tokens for this user (force-logout everywhere) and
+  // record an audit row so the incident is investigatable.
+  if (stored.revokedAt) {
+    await prisma.refreshToken.updateMany({
+      where: { userId: stored.userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    await prisma.auditLog.create({
+      data: { userId: stored.userId, action: "auth.refresh_reuse_detected", subject: stored.id },
+    });
     throw Object.assign(new Error("invalid_refresh_token"), { statusCode: 401 });
   }
 
