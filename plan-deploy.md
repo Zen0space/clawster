@@ -8,7 +8,7 @@ Modeled after `poket-ebook`'s `deploy-rkb-dev.yml` / `deploy-rkb-prod.yml`.
 
 Why GitHub Actions instead of a webhook or `git pull` cron:
 - The rkb host is on a CGNAT residential ISP — no inbound IP, port 22 cannot be exposed publicly.
-- Cloudflare Tunnel already terminates on rkb (it's how `wsbe.senireka.my` works). Adding one more route — `ssh.senireka.my` → `ssh://host.docker.internal:22` — gives Actions a way in **without** opening any port at home.
+- Cloudflare Tunnel already terminates on rkb (it's how `wsbe.senireka.my` works). Adding one more route — `ssh-ws.senireka.my` → `ssh://host.docker.internal:22` — gives Actions a way in **without** opening any port at home.
 - Cloudflare Access service tokens authenticate the runner so the SSH route isn't open to the world.
 
 End-to-end flow:
@@ -28,7 +28,7 @@ Cloudflare Edge ──► clawster-prod tunnel ──► clawster-cloudflared
         │                                            ▼
         │                          host.docker.internal:22 (rkb host SSH)
         ▼
-ssh ssh.senireka.my (key auth: SSH_DEPLOY_KEY)
+ssh ssh-ws.senireka.my (key auth: SSH_DEPLOY_KEY)
         │
         ▼
 cd ~/projects/clawster-dev
@@ -48,7 +48,7 @@ Same shape for `main` → `~/projects/clawster/` → `docker-compose.server.yml`
 | DB migration step | runs `supabase db push` from the runner against external Supabase | **omitted** — Prisma migrations auto-run inside the container on boot via the Dockerfile entrypoint (`pnpm --filter @clawster/db migrate:deploy`) |
 | Healthcheck path | `/health` | `/healthz` |
 | Hosts probed | apex + seller + backend | `wsbe.senireka.my` (prod) / `dev-wsbe.senireka.my` (dev) |
-| SSH ingress hostname | `ssh.poket-ebook.com` (existing) | `ssh.senireka.my` (new — see step 1) |
+| SSH ingress hostname | `ssh.poket-ebook.com` (existing) | `ssh-ws.senireka.my` (new — see step 1) |
 
 Net effect: clawster's deploy job is **simpler** than poket-ebook's. No DB CLI, no extra app container probes — one curl per env.
 
@@ -85,11 +85,11 @@ Add `extra_hosts` to the existing `clawster-cloudflared` service so it can reach
 
 Tunnel `clawster-prod` → **Public Hostnames** → Add:
 
-| Subdomain | Domain        | Type | URL                        |
-|-----------|---------------|------|----------------------------|
-| `ssh`     | `senireka.my` | SSH  | `ssh://host.docker.internal:22` |
+| Subdomain | Domain        | Type | URL                              |
+|-----------|---------------|------|----------------------------------|
+| `ssh-ws`  | `senireka.my` | SSH  | `ssh://host.docker.internal:22`  |
 
-Cloudflare auto-creates the CNAME `ssh.senireka.my → <tunnel-id>.cfargotunnel.com`.
+Cloudflare auto-creates the CNAME `ssh-ws.senireka.my → <tunnel-id>.cfargotunnel.com`.
 
 ## Step 2 — Cloudflare Access (service token auth for the runner)
 
@@ -97,7 +97,7 @@ The SSH route must be locked down — without Access in front, anyone who guesse
 
 In Zero Trust → **Access** → **Applications**:
 1. **Add an application** → Self-hosted.
-2. Application name: `rkb-ssh-deploy-clawster`. Application domain: `ssh.senireka.my`. App type: **SSH**.
+2. Application name: `rkb-ssh-deploy-clawster`. Application domain: `ssh-ws.senireka.my`. App type: **SSH**.
 3. **Add policy** — Action: **Service Auth** (not Allow!). Name: `github-actions`. Configure rules → Include → **Service Token** → create new token named `clawster-deploy`.
 4. Copy the **Client ID** and **Client Secret** shown once (these are `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`).
 
@@ -177,7 +177,7 @@ jobs:
           printf '%s\n' "$SSH_DEPLOY_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           cat > ~/.ssh/config <<EOF
-          Host ssh.senireka.my
+          Host ssh-ws.senireka.my
             User rekabytes
             IdentityFile ~/.ssh/id_ed25519
             ProxyCommand cloudflared access ssh --hostname %h --service-token-id ${CF_ACCESS_CLIENT_ID} --service-token-secret ${CF_ACCESS_CLIENT_SECRET}
@@ -189,7 +189,7 @@ jobs:
 
       - name: Deploy prod stack
         run: |
-          ssh ssh.senireka.my bash -s <<'REMOTE'
+          ssh ssh-ws.senireka.my bash -s <<'REMOTE'
           set -euo pipefail
           cd /home/rekabytes/projects/clawster
           echo "→ syncing main branch"
@@ -246,7 +246,7 @@ jobs:
           printf '%s\n' "$SSH_DEPLOY_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           cat > ~/.ssh/config <<EOF
-          Host ssh.senireka.my
+          Host ssh-ws.senireka.my
             User rekabytes
             IdentityFile ~/.ssh/id_ed25519
             ProxyCommand cloudflared access ssh --hostname %h --service-token-id ${CF_ACCESS_CLIENT_ID} --service-token-secret ${CF_ACCESS_CLIENT_SECRET}
@@ -258,7 +258,7 @@ jobs:
 
       - name: Deploy dev stack
         run: |
-          ssh ssh.senireka.my bash -s <<'REMOTE'
+          ssh ssh-ws.senireka.my bash -s <<'REMOTE'
           set -euo pipefail
           cd /home/rekabytes/projects/clawster-dev
           echo "→ syncing dev branch"
@@ -334,6 +334,6 @@ docker compose -f docker-compose.dev.yml --env-file .env.dev up -d --build
 ## Required Cloudflare config (recap)
 
 1. `clawster-prod` tunnel exists with HTTP routes for `wsbe.senireka.my` and `dev-wsbe.senireka.my` (from `plan.md`).
-2. **NEW** SSH route: `ssh.senireka.my` → `ssh://host.docker.internal:22`.
-3. **NEW** Access application `rkb-ssh-deploy-clawster` covering `ssh.senireka.my`.
+2. **NEW** SSH route: `ssh-ws.senireka.my` → `ssh://host.docker.internal:22`.
+3. **NEW** Access application `rkb-ssh-deploy-clawster` covering `ssh-ws.senireka.my`.
 4. **NEW** Access policy with action **Service Auth**, Service Token `clawster-deploy`.

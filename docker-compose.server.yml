@@ -49,7 +49,7 @@ services:
       - clawster-backend
     extra_hosts:
       # Lets cloudflared reach rkb host services (e.g. SSH on :22) via host.docker.internal.
-      # Used later by ssh.senireka.my route in plan-deploy.md.
+      # Used later by ssh-ws.senireka.my route in plan-deploy.md.
       - "host.docker.internal:host-gateway"
     networks:
       - proxy-net
