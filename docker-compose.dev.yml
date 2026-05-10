@@ -28,7 +28,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: clawster
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env.dev}
       POSTGRES_DB: clawster
     volumes:
       - /mnt/storage/docker-volumes/clawster-dev/postgres-data:/var/lib/postgresql/data

@@ -28,7 +28,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: clawster
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env.prod}
       POSTGRES_DB: clawster
     volumes:
       - /mnt/storage/docker-volumes/clawster/postgres-data:/var/lib/postgresql/data
@@ -44,7 +44,7 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: clawster-cloudflared
     restart: unless-stopped
-    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN:?TUNNEL_TOKEN must be set in .env.prod}
     depends_on:
       - clawster-backend
     extra_hosts:

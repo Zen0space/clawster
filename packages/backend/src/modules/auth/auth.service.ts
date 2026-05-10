@@ -2,6 +2,7 @@ import argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import { createHash, randomUUID } from "node:crypto";
 import { prisma } from "@clawster/db";
+import { env } from "../../env";
 
 const ACCESS_EXPIRY_SEC = 15 * 60;
 const REFRESH_EXPIRY_MS = 14 * 24 * 60 * 60 * 1000;
@@ -20,13 +21,13 @@ export function verifyPassword(hash: string, password: string) {
 }
 
 export function issueAccessToken(userId: string): string {
-  return jwt.sign({ sub: userId }, process.env.JWT_SECRET!, {
+  return jwt.sign({ sub: userId }, env.JWT_SECRET, {
     expiresIn: ACCESS_EXPIRY_SEC,
   });
 }
 
 export function verifyAccessToken(token: string): { sub: string } {
-  return jwt.verify(token, process.env.JWT_SECRET!) as { sub: string };
+  return jwt.verify(token, env.JWT_SECRET) as { sub: string };
 }
 
 export async function issueRefreshToken(userId: string): Promise<string> {

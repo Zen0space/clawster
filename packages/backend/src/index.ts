@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { env } from "./env";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
@@ -115,10 +116,7 @@ app.get("/metrics", async (_request, reply) => {
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────
-const port = Number(process.env.PORT ?? 8080);
-const host = process.env.HOST ?? "0.0.0.0";
-
-app.listen({ port, host }, (err, address) => {
+app.listen({ port: env.PORT, host: env.HOST }, (err, address) => {
   if (err) { log.error("server failed to start", err); process.exit(1); }
   log.success(`server listening on ${address}`);
   reconnectAll().catch((e) => log.error("reconnectAll failed", e));
