@@ -36,5 +36,6 @@ WORKDIR /app
 EXPOSE 8080
 VOLUME ["/app/data"]
 
-# Run migrations on boot, then start the API
-CMD ["sh", "-c", "pnpm --filter @clawster/db migrate:deploy && node packages/backend/dist/index.js"]
+# Run migrations on boot, then start the API. Log boundary lines around the
+# migration step so a failure is obvious in compose/k8s logs.
+CMD ["sh", "-c", "echo '→ applying migrations' && pnpm --filter @clawster/db migrate:deploy && echo '→ migrations applied, starting backend' && node packages/backend/dist/index.js"]

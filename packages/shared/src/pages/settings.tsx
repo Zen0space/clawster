@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type ChatHealth } from "../api";
 
@@ -116,11 +117,18 @@ export function Settings() {
     enabled: health?.configured ?? false,
   });
 
-  // Auto-run a check on first load if configured but never checked
-  useMutation({
+  // Auto-run a health check on first load if AI is configured but has never
+  // been checked. The mutation revalidates ["chat-health"], which then renders
+  // the freshly-populated lastCheck in the AiIntegration card.
+  const autoCheck = useMutation({
     mutationFn: () => api.chat.healthCheck(),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["chat-health"] }),
   });
+  useEffect(() => {
+    if (health?.configured && !health.lastCheck && !autoCheck.isPending) {
+      autoCheck.mutate();
+    }
+  }, [health?.configured, health?.lastCheck, autoCheck]);
 
   return (
     <div className="page-content">
