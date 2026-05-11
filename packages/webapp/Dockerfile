@@ -4,7 +4,8 @@
 # ─── builder ─────────────────────────────────────────────────────────────────
 FROM node:26-alpine AS builder
 RUN apk add --no-cache python3 make g++
-RUN corepack enable && corepack prepare pnpm@10.28.0 --activate
+# corepack was unbundled from Node 25+; install pnpm directly via npm.
+RUN npm install -g pnpm@10.28.0
 WORKDIR /app
 
 ARG VITE_API_URL
