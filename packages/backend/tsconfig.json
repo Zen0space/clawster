@@ -9,7 +9,7 @@
     "declarationMap": false,
     "baseUrl": ".",
     "paths": {
-      "@clawster/shared/schemas/auth": ["../shared/dist/schemas/auth.d.ts"]
+      "@clawster/shared/schemas/auth": ["../shared/src/schemas/auth.ts"]
     }
   },
   "include": ["src"]
