@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { env } from "./env";
-import Fastify from "fastify";
+import Fastify, { type FastifyError } from "fastify";
 import { prisma } from "@clawster/db";
 import { boss } from "./modules/worker/boss";
 import cors from "@fastify/cors";
@@ -88,7 +88,7 @@ app.addHook("onResponse", (request, reply, done) => {
 // fine for clients, useless for ops. Log the full error here so server-side
 // failures aren't invisible, while keeping the response body shape consistent
 // with the rest of the API (`{ error: "..." }`).
-app.setErrorHandler((err, request, reply) => {
+app.setErrorHandler((err: FastifyError, request, reply) => {
   const status = err.statusCode ?? 500;
 
   // Validation/auth/rate-limit errors are expected — warn without stack noise.

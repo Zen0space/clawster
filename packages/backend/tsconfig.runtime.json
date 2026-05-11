@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@clawster/shared/schemas/auth": ["../shared/src/schemas/auth.ts"]
+    }
+  }
+}

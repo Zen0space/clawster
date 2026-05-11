@@ -15,7 +15,7 @@ import {
 import { userAtom } from "../atoms";
 import { api } from "../api";
 
-type Page =
+export type DashboardPage =
   | "dashboard"
   | "sessions"
   | "contacts"
@@ -23,7 +23,7 @@ type Page =
   | "inbox"
   | "chatbot";
 
-type Props = { onNavigate: (page: Page) => void };
+type Props = { onNavigate: (page: DashboardPage) => void };
 
 export function Dashboard({ onNavigate }: Props) {
   const user = useAtomValue(userAtom);
