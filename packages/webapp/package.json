@@ -14,6 +14,7 @@
     "@clawster/shared": "workspace:*",
     "@tanstack/react-query": "^5.100.9",
     "jotai": "^2.20.0",
+    "lucide-react": "^1.14.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",

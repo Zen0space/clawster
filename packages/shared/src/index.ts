@@ -20,7 +20,7 @@ export {
 export { AuthProvider, useAuth } from "./auth-context";
 export { Login } from "./pages/login";
 export { Signup } from "./pages/signup";
-export { Dashboard } from "./pages/dashboard";
+export { Dashboard, type DashboardPage } from "./pages/dashboard";
 export { Sessions } from "./pages/sessions";
 export { Inbox } from "./pages/inbox";
 export { Chatbot } from "./pages/chatbot";
