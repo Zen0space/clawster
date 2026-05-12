@@ -34,7 +34,7 @@
   "devDependencies": {
     "@types/google-libphonenumber": "^7.4.30",
     "@types/jsonwebtoken": "^9.0.9",
-    "@types/node": "^25.6.2",
+    "@types/node": "^25.7.0",
     "tsx": "^4.19.3",
     "typescript": "^5.8.3"
   }
