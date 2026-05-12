@@ -1,4 +1,4 @@
-# Clawster
+# Clawster Hello
 
 A desktop app for bulk WhatsApp messaging with humanoid pacing to reduce ban risk. Built with Tauri 2 (Windows + macOS), Node.js backend, and PostgreSQL.
 
