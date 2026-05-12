@@ -239,7 +239,7 @@ jobs:
       # softprops/action-gh-release creates the tag if it doesn't exist,
       # so we publish the release and create the tag in a single atomic step.
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.resolve.outputs.tag }}
           name: ${{ needs.resolve.outputs.tag }}
